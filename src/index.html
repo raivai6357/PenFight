@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<title>Desk Duel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Caveat:wght@500;700&family=Chivo+Mono:wght@400;600&family=Chivo:ital,wght@0,300;0,400;0,600;0,900&display=swap">
+
+<!--@css@-->
+
+<div class="room" aria-hidden="true"></div>
+
+<div class="shell">
+
+  <header class="board">
+    <div class="side p1">
+      <div class="count" id="s1">0</div>
+      <div class="tag">
+        <div class="who" id="n1">Blue</div>
+        <div class="what" id="w1">Bic Classic</div>
+        <div class="pips" id="pip1"><i class="pip"></i><i class="pip"></i></div>
+      </div>
+    </div>
+
+    <div class="centre">
+      <div class="round" id="roundLbl">Round 1 &middot; best of 3</div>
+      <div class="state neutral" id="stateLbl">Choose your weapon</div>
+    </div>
+
+    <div class="side r p2">
+      <div class="count" id="s2">0</div>
+      <div class="tag">
+        <div class="who" id="n2">Red</div>
+        <div class="what" id="w2">Fountain Pen</div>
+        <div class="pips" id="pip2"><i class="pip"></i><i class="pip"></i></div>
+      </div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <div class="frame">
+      <canvas id="desk" width="1000" height="640" tabindex="0"
+              aria-label="Desk arena. Drag back from your pen and release to flick it. Keyboard: arrow keys to aim, up and down to set power, space to flick."></canvas>
+
+      <!-- SETUP -->
+      <div class="sheet-wrap" id="setupWrap">
+        <div class="sheet">
+          <h1>Desk Duel</h1>
+          <p class="sub">Two pens. One desk. Knock theirs off twice and it's yours.</p>
+
+          <div class="rows">
+            <fieldset>
+              <legend>Opponent</legend>
+              <div class="opts" id="modeOpts">
+                <button class="opt" type="button" data-mode="cpu" aria-pressed="true">Play the desk
+                  <small>vs. computer</small></button>
+                <button class="opt" type="button" data-mode="hot" aria-pressed="false">Hot seat
+                  <small>2 players, one screen</small></button>
+                <button class="opt" type="button" data-mode="net" aria-pressed="false">Play a friend
+                  <small>2 screens, over the network</small></button>
+              </div>
+            </fieldset>
+
+            <fieldset id="netRow" hidden>
+              <legend>The connection</legend>
+              <div class="opts" id="netPanel">
+                <label class="opt" for="netServer">Server
+                  <small><input id="netServer" type="url" placeholder="http://localhost:3000" spellcheck="false"></small></label>
+                <button class="opt" type="button" id="netCreate">Create a room
+                  <small>you get a code to share</small></button>
+                <button class="opt" type="button" id="netJoinBtn">Join a room
+                  <small>type your friend's code</small></button>
+                <label class="opt" for="netCode">Code
+                  <small><input id="netCode" type="text" maxlength="4" placeholder="ABCD" autocapitalize="characters" spellcheck="false"></small></label>
+              </div>
+              <div class="note" id="netStatus" style="margin-top:9px"></div>
+            </fieldset>
+
+            <fieldset id="diffRow">
+              <legend>How mean is it</legend>
+              <div class="opts" id="diffOpts">
+                <button class="opt" type="button" data-diff="casual" aria-pressed="true">Casual
+                  <small>aims roughly</small></button>
+                <button class="opt" type="button" data-diff="sharp" aria-pressed="false">Sharp
+                  <small>plays the angles</small></button>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>The surface</legend>
+              <div class="opts" id="deskOpts"></div>
+            </fieldset>
+
+            <fieldset>
+              <div class="who-for b" id="pickLbl1">Blue picks</div>
+              <div class="pens" id="pens1"></div>
+            </fieldset>
+
+            <fieldset>
+              <div class="who-for r" id="pickLbl2">Red picks</div>
+              <div class="pens" id="pens2"></div>
+            </fieldset>
+          </div>
+
+          <div class="go">
+            <button class="btn" type="button" id="startBtn">Flick off</button>
+            <span class="note">Drag <em>backwards</em> from your own pen&mdash;<br>like a slingshot.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULT -->
+      <div class="sheet-wrap" id="resultWrap" hidden>
+        <div class="sheet">
+          <div class="verdict">
+            <span class="kicker" id="vKick">Match over</span>
+            <h1 id="vTitle">Blue wins</h1>
+            <p class="sub" id="vSub">Two rounds to none.</p>
+          </div>
+          <div class="tally" id="vTally"></div>
+          <div class="go">
+            <button class="btn" type="button" id="againBtn">Run it back</button>
+            <button class="btn ghost" type="button" id="changeBtn">Change pens</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <p class="hint" id="hint">Grab your pen near the <b>tip</b> and it'll spin as it flies&mdash;glancing blows send theirs cartwheeling.</p>
+    <div class="tools">
+      <span class="keys"><kbd>&larr;</kbd><kbd>&rarr;</kbd> aim &nbsp;<kbd>&uarr;</kbd><kbd>&darr;</kbd> power &nbsp;<kbd>Space</kbd> flick</span>
+      <button class="tool" type="button" id="soundBtn" aria-pressed="true">Sound on</button>
+      <button class="tool" type="button" id="quitBtn">New match</button>
+    </div>
+  </footer>
+</div>
+
+<!--@js@-->
