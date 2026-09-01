@@ -114,7 +114,6 @@ function buildDeskOpts() {
     const b = document.createElement("button");
     b.type = "button"; b.className = "opt";
     b.setAttribute("aria-pressed", String(G.deskId === d.id));
-    b.disabled = G.mode === "net" && NET.role === 1;   // the host owns the desk
     b.innerHTML = `${d.name}<small>${d.note}</small>`;
     b.addEventListener("click", () => {
       if (b.disabled) return;
@@ -149,6 +148,13 @@ bindToggle("diffOpts", "diff", "diff");
 buildDeskOpts();
 buildPenPicker(el("pens1"), 0);
 buildPenPicker(el("pens2"), 1);
+
+/* either seat may clear the desk — the pick syncs to both via sendCfg */
+el("clutterBtn").addEventListener("click", () => {
+  G.clutter = !G.clutter;
+  el("clutterBtn").setAttribute("aria-pressed", String(G.clutter));
+  sendCfg();
+});
 
 el("startBtn").addEventListener("click", () => {
   if (G.mode === "net" && (!NET.on || NET.role !== 0)) return;   // only the host deals

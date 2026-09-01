@@ -16,7 +16,7 @@ npm packages, no bundler.
 | command | what it does |
 |---|---|
 | `npm run build` | assembles `src/` → `dist/desk-duel.html` (or `node build.js`) |
-| `npm test` | rebuilds, then runs the regression harness: 24 checks over the solver, the real turn flow, net play between two game instances, and the relay server over real HTTP |
+| `npm test` | rebuilds, then runs the regression harness: 28 checks over the solver, the real turn flow, net play between two game instances (including a 60 Hz host vs a 144 Hz guest), and the relay server over real HTTP |
 | `npm run serve` | rebuilds, serves the game + the multiplayer relay on http://localhost:3000 |
 
 `dist/desk-duel.html` is the only file that gets published — one
@@ -59,10 +59,13 @@ CrazyGames SDK) slots in as `src/js/15-platform.js`.
 
 The relay knows nothing about the game — it just shuttles JSON between two
 browsers. One player creates a room, shares the 4-letter code, the other
-joins. The **host is authoritative**: it owns the deck, seeds each round,
-and sends the guest settled-world snapshots to restore. The guest plays an
-optimistic local simulation of its own flicks and reconciles on arrival, so
-the two machines cannot drift apart even at different frame rates.
+joins. The **host is authoritative**: it seeds each round
+and sends the guest settled-world snapshots to restore. Each player picks
+their own pen; the desk and the clutter toggle are shared — either player
+can change them and the pick syncs to both. The guest plays an
+optimistic local simulation of its own flicks and reconciles on arrival; the
+simulation runs on a fixed 1/60 s timestep, so the two machines cannot drift
+apart even at different refresh rates.
 
 ## Playing online (Render or similar)
 
@@ -89,4 +92,5 @@ keeps an open room's connection alive while you play.
 conservation across every desk/pen combination, spin as a lever arm,
 snapshot/restore bit-identity, aim-preview honesty against the actual
 solver, full matches in every mode, and two game instances wired together
-at the message layer (6 matches, 0 desyncs allowed).
+at the message layer (matches at matched and mismatched frame rates,
+0 desyncs allowed).

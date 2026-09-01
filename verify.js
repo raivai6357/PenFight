@@ -100,6 +100,14 @@ const kinetic = (W) => {
   ok(Math.abs(t.v - c.v) < 1, `grab point trades spin, not speed (${c.v.toFixed(0)} px/s either way)`);
 }
 
+/* the clutter toggle really empties the desk */
+{
+  const d = P.deskById('wood');
+  const hasObjs = (W) => W.bodies.some((b) => b.tag === 'obj');
+  ok(hasObjs(P.buildWorld(d, ['bic', 'bic'])) && !hasObjs(P.buildWorld(d, ['bic', 'bic'], true)),
+    'buildWorld(bare) deals an empty desk');
+}
+
 /* the tray lip holds a full-power shot into a rail */
 {
   const d = P.deskById('tray'), A = d.arena;
@@ -279,9 +287,8 @@ ok(!thrown, thrown ? 'threw: ' + thrown.stack.split('\n').slice(0, 3).join(' | '
 
 /* ── two game copies wired together at the message layer. The protocol is
       what's under test: the host is authoritative, the guest reconciles to
-      its snapshots. Both instances tick at the same fixed 60 Hz here (real
-      browsers don't — which is exactly why the design is host-authoritative
-      rather than lockstep). ── */
+      its snapshots — first at matched frame rates, then at wildly different
+      ones (a 60 Hz host against a 144 Hz guest). ── */
 function netPlaySuite() {
   console.log('\n── net play (two instances, wired at the message layer) ──────');
 
@@ -331,6 +338,62 @@ function netPlaySuite() {
   // a disconnect drops the peer back to the setup sheet
   guest.netDispatch({ t: 'peer-left' });
   ok(GG.phase === 'setup' && !guest.NET.on, 'peer-left returns the peer to the setup sheet');
+
+  /* a cfg that raced the start of the match must not decide the world: the
+     round broadcast is the truth about pens, desk and clutter, and the guest
+     adopts all three from it */
+  {
+    const h = makeGame(), g = makeGame();
+    for (const I of [h, g]) { I.G.mode = 'net'; I.NET.on = true; }
+    h.NET.role = 0; g.NET.role = 1;
+    h.NET.send = (m) => g.netDispatch(m);
+    g.NET.send = () => {};
+    h.G.penIds = ['quill', 'gel']; h.G.deskId = 'glass'; h.G.clutter = false;
+    g.G.penIds = ['bic', 'bic'];   g.G.deskId = 'wood';  g.G.clutter = true;
+    h.newMatch();   // host deals: the round message carries the full setup
+    ok(g.G.penIds[0] === 'quill' && g.G.penIds[1] === 'gel' &&
+       g.G.deskId === 'glass' && g.G.clutter === false &&
+       !g.G.W.bodies.some((b) => b.tag === 'obj'),
+      'the guest adopts pens, desk and clutter from the round broadcast');
+  }
+
+  /* a 60 Hz host against a 144 Hz guest — the accumulator must make both
+     machines integrate the same 1/60 s steps even though their frames are
+     differently spaced, or the guest's optimistic shot diverges and snaps
+     back when the host's snapshot lands */
+  {
+    const h = makeGame(), g = makeGame();
+    const HG = h.G, GG = g.G;
+    for (const I of [h, g]) { I.G.mode = 'net'; I.NET.on = true; }
+    h.NET.role = 0; g.NET.role = 1;
+    h.NET.send = (m) => g.netDispatch(m);
+    g.NET.send = (m) => h.netDispatch(m);
+
+    const nrng = mulberry32(0xFACE);
+    // each instance gets its own virtual clock, ticking at its own refresh rate
+    let hClock = clock + 1000, gClock = clock + 1000;
+    let matches = 0, flicks = 0, frames = 0, desync = 0;
+    h.newMatch();
+    while (matches < 3 && frames < 90000) {
+      if (HG.phase === 'aim' && GG.phase === 'aim' && HG.turn === GG.turn) {
+        const I = HG.turn === 0 ? h : g;
+        I.G.shot.angle = nrng() * Math.PI * 2;
+        I.G.shot.power = 0.25 + nrng() * 0.75;
+        I.G.shot.grabT = nrng() * 2 - 1;
+        I.fireShot(); flicks++;
+      }
+      hClock += 1000 / 60;  h.loop(hClock);
+      gClock += 1000 / 144; g.loop(gClock);
+      frames++;
+      if (HG.phase === 'aim' && GG.phase === 'aim') {
+        if (JSON.stringify(h.snapshot(HG.W)) !== JSON.stringify(g.snapshot(GG.W))) desync++;
+        if (HG.turn !== GG.turn || HG.round !== GG.round) desync++;
+      }
+      if (HG.phase === 'over') { matches++; h.newMatch(); }
+    }
+    ok(matches >= 3 && !desync,
+      `60 Hz host vs 144 Hz guest — ${matches} matches, ${flicks} relayed flicks, ${desync} desyncs`);
+  }
 }
 
 /* ── the real relay over real HTTP: create, join, presence, relay, leave ── */

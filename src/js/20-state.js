@@ -6,6 +6,7 @@ const G = {
   diff: "casual",
   deskId: "wood",
   penIds: ["bic", "fountain"],
+  clutter: true,      // loose objects on the desk — either player can clear them
   score: [0, 0],
   round: 1,
   turn: 0,

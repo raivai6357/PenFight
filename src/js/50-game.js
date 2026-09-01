@@ -16,14 +16,15 @@ function startRound() {
     setSeed(seed);
     beginRound();
     NET.send({ t: "round", seed, snap: snapshot(G.W), score: G.score.slice(),
-               round: G.round, turn: G.turn, banner: G.lastBanner });
+               round: G.round, turn: G.turn, banner: G.lastBanner,
+               desk: G.deskId, pens: G.penIds.slice(), clutter: G.clutter });
     return;
   }
   beginRound();
 }
 
 function beginRound() {
-  G.W = buildWorld(deskById(G.deskId), G.penIds);
+  G.W = buildWorld(deskById(G.deskId), G.penIds, !G.clutter);
   G.W.onOut = (b) => {
     if (b.tag === "pen") { sfxOut(); G.shake = 1; }
     else sfxClack(400);
@@ -42,6 +43,12 @@ function startRoundFromNet(m) {
   el("setupWrap").hidden = true;
   el("resultWrap").hidden = true;
   setSeed(m.seed);
+  /* the round broadcast is the truth about pens, desk and clutter too —
+     a cfg message that raced the start of the match must not leave the
+     two machines simulating different bodies */
+  if (m.pens) G.penIds = m.pens.slice();
+  if (m.desk && m.desk !== G.deskId) { G.deskId = m.desk; surf = null; surfKey = ""; }
+  if (typeof m.clutter === "boolean") G.clutter = m.clutter;
   G.score = m.score.slice();
   G.round = m.round;
   G.turn = m.turn;
@@ -71,6 +78,8 @@ function fireShot(shot) {
   sfxFlick(p.power);
   // a shot fired here is announced; a relayed one (shot given) already was
   if (!shot && G.mode === "net" && NET.on) {
+    NET.lastFlick = { angle: p.angle, power: p.power, grabT: p.grabT };
+    NET.tries = 0;
     NET.send({ t: "flick", angle: p.angle, power: p.power, grabT: p.grabT });
   }
   G.phase = "sim";
@@ -248,33 +257,59 @@ function cpuTick(dt) {
 
 /* ══════════════════════════════════════════════════════════════════════
    MAIN LOOP
+   The simulation runs on a fixed 1/60s timestep fed by an accumulator —
+   never on raw frame deltas. Two machines at different refresh rates must
+   integrate the exact same step sequence, or the guest's optimistic copy
+   of a shot drifts from the host's authoritative one and snaps back when
+   the end-of-turn snapshot arrives. Only the paint (trails, sparks, shake)
+   uses real frame time.
    ══════════════════════════════════════════════════════════════════════ */
+const STEP = 1 / 60;
 let last = performance.now();
+let acc = 0;
+
+function tick(dt) {
+  const W = G.W;
+  if (!W) return;
+  if (G.phase === "sim") {
+    G.simT += dt;
+    W.impacts.length = 0;
+    stepWorld(W, dt);
+    checkOut(W);
+    for (const im of W.impacts) {
+      sfxClack(im.mag);
+      burst(im.x, im.y, im.tag === "pen" ? "#ece8de" : "#cfc9b6", 3);
+      G.shake = Math.max(G.shake, clamp(im.mag / 2600, 0, 0.7));
+    }
+    /* the host calls the shot and tells us; if it never even saw our flick
+       (a relay hiccup), the desk would sit silent forever — try again,
+       then call the connection lost */
+    if (G.mode === "net" && NET.role === 1 && G.simT > 8) {
+      if (NET.lastFlick && NET.tries < 2) {
+        NET.tries++;
+        NET.send({ t: "flick", angle: NET.lastFlick.angle, power: NET.lastFlick.power, grabT: NET.lastFlick.grabT });
+        G.simT = 4;   // wait another stretch before giving up
+      } else netPeerGone("The host stopped responding");
+    }
+    if (G.simT > 0.3 && (isSettled(W) || G.simT > 7)) resolveTurn();
+  } else if (G.phase === "cpu" && CPU) {
+    cpuTick(dt);
+  } else if (G.phase === "score") {
+    G.waitT -= dt;
+    if (G.waitT <= 0) afterScore();
+  }
+}
+
 function loop(now) {
   let dt = (now - last) / 1000;
   last = now;
   dt = Math.min(dt, 1 / 30);
+  acc = Math.min(acc + dt, 0.25);   // after a stall, don't burst-simulate
+  while (acc >= STEP) { tick(STEP); acc -= STEP; }
 
+  // paint-time effects run on real frame time
   const W = G.W;
   if (W) {
-    if (G.phase === "sim") {
-      G.simT += dt;
-      W.impacts.length = 0;
-      stepWorld(W, dt);
-      checkOut(W);
-      for (const im of W.impacts) {
-        sfxClack(im.mag);
-        burst(im.x, im.y, im.tag === "pen" ? "#ece8de" : "#cfc9b6", 3);
-        G.shake = Math.max(G.shake, clamp(im.mag / 2600, 0, 0.7));
-      }
-      if (G.simT > 0.3 && (isSettled(W) || G.simT > 7)) resolveTurn();
-    } else if (G.phase === "cpu" && CPU) {
-      cpuTick(dt);
-    } else if (G.phase === "score") {
-      G.waitT -= dt;
-      if (G.waitT <= 0) afterScore();
-    }
-
     // trails + fall animation run in every phase
     for (const b of W.bodies) {
       if (b.stat) continue;

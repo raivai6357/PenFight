@@ -78,7 +78,7 @@ function lipWalls(A) {
 }
 
 /* ── world ───────────────────────────────────────────────────────────── */
-function buildWorld(desk, penIds) {
+function buildWorld(desk, penIds, bare) {
   const A = desk.arena;
   const W = { desk, arena: A, mu: desk.mu, bodies: [], walls: [], fx: true, impacts: [], onOut: null };
 
@@ -90,18 +90,20 @@ function buildWorld(desk, penIds) {
   W.pens = [p1, p2];
   W.bodies.push(p1, p2);
 
-  const count = 2 + ((_rng() * 2) | 0);   // seeded: a shared seed must rebuild this world exactly
-  const placed = [];
-  for (let i = 0; i < count; i++) {
-    for (let t = 0; t < 30; t++) {
-      const x = A.x + A.w * rnd(0.33, 0.67);
-      const y = A.y + A.h * rnd(0.14, 0.86);
-      let ok = Math.hypot(x - p1.x, y - p1.y) > 92 && Math.hypot(x - p2.x, y - p2.y) > 92;
-      for (const q of placed) if (Math.hypot(x - q.x, y - q.y) < 62) ok = false;
-      if (!ok) continue;
-      const b = pick(CLUTTER).make(x, y, rnd(0, TAU));
-      placed.push(b); W.bodies.push(b);
-      break;
+  if (!bare) {   // "clear the desk": just the two pens, nothing loose
+    const count = 2 + ((_rng() * 2) | 0);   // seeded: a shared seed must rebuild this world exactly
+    const placed = [];
+    for (let i = 0; i < count; i++) {
+      for (let t = 0; t < 30; t++) {
+        const x = A.x + A.w * rnd(0.33, 0.67);
+        const y = A.y + A.h * rnd(0.14, 0.86);
+        let ok = Math.hypot(x - p1.x, y - p1.y) > 92 && Math.hypot(x - p2.x, y - p2.y) > 92;
+        for (const q of placed) if (Math.hypot(x - q.x, y - q.y) < 62) ok = false;
+        if (!ok) continue;
+        const b = pick(CLUTTER).make(x, y, rnd(0, TAU));
+        placed.push(b); W.bodies.push(b);
+        break;
+      }
     }
   }
   return W;

@@ -10,6 +10,8 @@ const NET = {
   token: "",
   base: "",
   es: null,
+  lastFlick: null,   // our last announced flick, kept for a resend if it got lost
+  tries: 0,
 
   url(path) { return this.base.replace(/\/+$/, "") + path; },
   async post(path, body) {
@@ -71,14 +73,16 @@ function refreshPickers() {
   const locked = G.mode === "net" && NET.role === 1;
   el("startBtn").disabled = locked;
   el("startBtn").textContent = locked ? "Waiting for host…" : "Flick off";
+  el("clutterBtn").setAttribute("aria-pressed", String(G.clutter));
 }
 
-/* each seat broadcasts only what it owns: host owns the desk and Blue's pen */
+/* the desk and the clutter are shared — either seat can change them and the
+   pick syncs to both. Each seat additionally broadcasts its own pen. */
 function sendCfg() {
   if (G.mode !== "net" || !NET.on) return;
-  NET.send(NET.role === 0
-    ? { t: "cfg", desk: G.deskId, pen0: G.penIds[0] }
-    : { t: "cfg", pen1: G.penIds[1] });
+  const m = { t: "cfg", desk: G.deskId, clutter: G.clutter };
+  if (NET.role === 0) m.pen0 = G.penIds[0]; else m.pen1 = G.penIds[1];
+  NET.send(m);
 }
 
 function netPeerGone(why) {
@@ -109,6 +113,7 @@ function netDispatch(m) {
       if (m.desk) { G.deskId = m.desk; surf = null; surfKey = ""; }
       if (m.pen0) G.penIds[0] = m.pen0;
       if (m.pen1) G.penIds[1] = m.pen1;
+      if (typeof m.clutter === "boolean") G.clutter = m.clutter;
       refreshPickers();
       syncBoard();
       return;
@@ -119,10 +124,11 @@ function netDispatch(m) {
       }
       return;
     case "round":
-      if (NET.role === 1) startRoundFromNet(m);
+      if (NET.role === 1) { NET.lastFlick = null; startRoundFromNet(m); }
       return;
     case "turn":
       if (NET.role !== 1) return;
+      NET.lastFlick = null;   // acknowledged — nothing left to resend
       restoreSnap(G.W, m.snap);
       G.score = m.score.slice();
       G.round = m.round;
@@ -143,6 +149,7 @@ function netDispatch(m) {
       el("resultWrap").hidden = true;
       el("setupWrap").hidden = false;
       G.phase = "setup"; G.W = null;
+      refreshPickers();   // a returning guest rebuilds its pickers with fresh state
       syncBoard();
       return;
     case "bye":
