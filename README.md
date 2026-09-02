@@ -18,7 +18,7 @@ npm packages, no bundler.
 | command | what it does |
 |---|---|
 | `npm run build` | assembles `src/` → `dist/desk-duel.html` (or `node build.js`) |
-| `npm test` | rebuilds, then runs the regression harness: 30 checks over the solver, the real turn flow, net play between two game instances (including a 60 Hz host vs a 144 Hz guest), and the relay server over real HTTP |
+| `npm test` | rebuilds, then runs the regression harness: 31 checks over the solver, the real turn flow, net play between two game instances (including a 60 Hz host vs a 144 Hz guest), and the relay server over real HTTP |
 | `npm run serve` | rebuilds, serves the game + the multiplayer relay on http://localhost:3000 |
 
 `dist/desk-duel.html` is the only file that gets published — one

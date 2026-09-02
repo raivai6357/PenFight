@@ -70,22 +70,22 @@ const kinetic = (W) => {
   ok(stopped >= 18 && avg < 8, `${stopped}/20 contained pens reach full rest, avg ${avg.toFixed(2)}s`);
 }
 
-/* a clean broadside at full power, aimed through the open corner, knocks
-   the target off — mid-desk shots now stay in behind the rail (see below) */
+/* a clean full-power shove, aimed down the diagonal notch between the rail
+   caps, still knocks the target off — mid-desk shots stay in (see below) */
 {
-  const d = P.deskById('wood'), A = d.arena;
+  const d = P.deskById('wood'), A = d.arena, D = Math.SQRT1_2;
   let knocked = 0;
   for (let t = 0; t < 12; t++) {
-    const W = P.buildWorld(d, ['bic', 'bic']);
-    W.bodies = W.bodies.filter(b => b.tag !== 'obj');
+    const W = P.buildWorld(d, ['bic', 'bic'], true);
     const me = W.pens[0], foe = W.pens[1];
-    me.y = foe.y = A.y + 60;   // above the side rail's reach — the corner is open
-    me.a = foe.a = Math.PI / 2;
-    P.flick(me, 0, 1.0, 0);
+    me.a = foe.a = -Math.PI / 4;                     // both pointing at the corner
+    foe.x = A.x + A.w - 130; foe.y = A.y + 130;
+    me.x = foe.x - 100 * D; me.y = foe.y + 100 * D;  // lined up behind on the diagonal
+    P.flick(me, -Math.PI / 4, 1.0, 0);
     for (let i = 0; i < 420; i++) { P.stepWorld(W, 1 / 60); P.checkOut(W); }
     if (!foe.alive) knocked++;
   }
-  ok(knocked >= 9, `${knocked}/12 broadsides through the open corner send the target off`);
+  ok(knocked >= 9, `${knocked}/12 full-power shoves through the corner notch send the target off`);
 }
 
 /* the point of the rails: a straight full-power shot at mid-desk bounces
@@ -104,6 +104,35 @@ const kinetic = (W) => {
     }
   }
   ok(held >= 10, `${held}/12 full-power mid-desk shots stay on behind the wood/glass rails`);
+}
+
+/* the corners are the only way out — and a skill shot, not a coin flip:
+   most random full-power flicks stay on, but some still find a gap */
+{
+  let out = 0, trials = 0;
+  P.setSeed(0xC0FFEE);
+  for (const d of P.DESKS) {
+    const A = d.arena;
+    for (const pen of P.PENS) {
+      for (let fy = 0.25; fy <= 0.7501; fy += 0.0625) {
+        for (const ang of [-0.35, 0, 0.35]) {
+          const W = P.buildWorld(d, [pen.id, pen.id], true);
+          W.pens[1].alive = false; W.pens[1].x = W.pens[1].y = 99999;
+          W.bodies = W.bodies.filter((b) => b.tag !== 'pen' || b.owner === 0);
+          const p = W.pens[0];
+          p.x = A.x + A.w / 2; p.y = A.y + A.h * fy; p.a = 0;
+          P.flick(p, ang, 1.0, 0);
+          trials++;
+          for (let i = 0; i < 600 && p.alive; i++) { P.stepWorld(W, 1 / 60); P.checkOut(W); }
+          if (!p.alive) out++;
+        }
+      }
+    }
+  }
+  P.setSeed(0x5EED);
+  const rate = out / trials;
+  ok(rate < 0.3 && out > 0,
+    `random full-power shots stay on ${(100 * (1 - rate)).toFixed(0)}% of the time — corners are the only way out`);
 }
 
 /* the grab point is a real lever arm — this is the whole skill mechanic */
