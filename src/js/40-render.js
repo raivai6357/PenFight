@@ -398,6 +398,7 @@ function draw() {
 
   drawSparks();
   if (G.phase === "aim" || G.phase === "cpu") drawAim();
+  drawTutor();
   drawBanner();
   ctx.setTransform(view.s, 0, 0, view.s, view.ox, view.oy);
 }
@@ -588,6 +589,92 @@ function drawAim() {
     ctx.textAlign = "center";
     ctx.fillText(spin > 0.6 ? "HEAVY SPIN" : "SPIN", gx, gy - 30);
   }
+  ctx.restore();
+}
+
+/* the first-flick tutorial: a ghost fingertip pulls back from the active
+   pen and lets go, on a loop, until the player does it themselves. The
+   band, the arc — everything is drawn exactly like the real aim overlay,
+   so the demo teaches the actual controls. */
+function drawTutor() {
+  if (!G.tutor || G.phase !== "aim" || !G.W) return;
+  if (!myTurn()) return;
+  const S = G.shot, pen = G.W.pens[G.turn];
+  if (!pen || !pen.alive || S.on || S.kb) return;
+
+  const LOOP = 2.8;
+  const t = reduceMotion ? 1.6 : (performance.now() / 1000) % LOOP;
+  const ang = S.angle;    // resetShot already aimed it at the foe
+  const ox = 0.15 * (pen.len / 2 - pen.rad);
+  const gx = pen.x + ox * Math.cos(pen.a);
+  const gy = pen.y + ox * Math.sin(pen.a);
+  const hue = HUES[G.turn];
+
+  // how far the ghost finger has pulled back, 0..1
+  let k = 0, alpha = 1;
+  if (t < 0.4) alpha = t / 0.4;
+  else if (t < 1.5) {
+    const u = (t - 0.4) / 1.1;
+    k = u < 0.5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+  }
+  else if (t < 1.75) k = 1;
+  else if (t < 1.95) { k = 1 - (t - 1.75) / 0.2; alpha = 1 - (t - 1.75) / 0.2; }
+  else { k = 0; alpha = 0; }
+
+  const pull = k * MAXDRAG * 0.62;
+  const bx = gx - Math.cos(ang) * pull;
+  const by = gy - Math.sin(ang) * pull;
+
+  ctx.save();
+  ctx.globalAlpha = clamp(alpha, 0, 1);
+
+  if (k > 0.02) {
+    // the band, dressed like the real one
+    ctx.setLineDash([]);
+    ctx.strokeStyle = "rgba(236,232,222,.3)";
+    ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(gx, gy); ctx.lineTo(bx, by); ctx.stroke();
+    // the power arc filling up
+    ctx.lineWidth = 3.2; ctx.lineCap = "round";
+    ctx.strokeStyle = "rgba(236,232,222,.15)";
+    ctx.beginPath(); ctx.arc(gx, gy, 22, -Math.PI * 0.75, Math.PI * 0.75); ctx.stroke();
+    ctx.strokeStyle = hue;
+    ctx.beginPath(); ctx.arc(gx, gy, 22, -Math.PI * 0.75, -Math.PI * 0.75 + Math.PI * 1.5 * (k * 0.62)); ctx.stroke();
+  }
+
+  // the ghost fingertip
+  ctx.fillStyle = "rgba(236,232,222,.92)";
+  ctx.beginPath(); ctx.arc(bx, by, 7, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "rgba(236,232,222,.35)";
+  ctx.lineWidth = 2;
+  const pulse = reduceMotion ? 12 : 12 + Math.sin(performance.now() / 300) * 1.5;
+  ctx.beginPath(); ctx.arc(bx, by, pulse, 0, TAU); ctx.stroke();
+
+  // the let-go: a short streak shooting forward
+  if (t >= 1.75 && t < 2.35) {
+    const f = (t - 1.75) / 0.6;
+    ctx.strokeStyle = hue;
+    ctx.lineWidth = 2.4; ctx.lineCap = "round";
+    ctx.globalAlpha = clamp(1 - f, 0, 1);
+    for (let i = 0; i < 3; i++) {
+      const d = 26 + f * 95 + i * 17;
+      ctx.beginPath();
+      ctx.moveTo(gx + Math.cos(ang) * d, gy + Math.sin(ang) * d);
+      ctx.lineTo(gx + Math.cos(ang) * (d + 13), gy + Math.sin(ang) * (d + 13));
+      ctx.stroke();
+    }
+  }
+
+  // handwriting on the desk, kept away from the pen itself
+  const A = G.W.arena;
+  const tx = clamp(pen.x, A.x + 170, A.x + A.w - 170);
+  const ty = clamp(pen.y - 72, A.y + 40, A.y + A.h - 16);
+  ctx.globalAlpha = 0.92;
+  ctx.textAlign = "center";
+  ctx.font = "700 25px Caveat, cursive";
+  ctx.fillStyle = "rgba(236,232,222,.95)";
+  ctx.fillText("drag back from your pen —", tx, ty);
+  ctx.fillText("let go to flick!", tx, ty + 27);
   ctx.restore();
 }
 

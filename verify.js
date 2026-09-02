@@ -243,6 +243,9 @@ globalThis.window = { devicePixelRatio: 1 };
 globalThis.matchMedia = () => ({ matches: false });
 globalThis.ResizeObserver = class { observe() {} };
 globalThis.requestAnimationFrame = () => 0;   // stops the loop recursing; we drive frames by hand
+/* a storage stub: shadowing Node's flag-gated localStorage keeps the game's
+   "don't show the tutorial twice" lookup from spewing an ExperimentalWarning */
+globalThis.localStorage = { getItem: () => null, setItem: () => {} };
 let clock = 0;
 /* keep markResourceTiming: undici's fetch calls it, and replacing performance
    wholesale (as older harnesses did) crashes Node's fetch mid-response */
@@ -328,6 +331,18 @@ try {
       `the toss is a real coin — Blue flicks first ${blueFirst}/40 matches`);
     ok(b && b.big === 'THE TOSS' && /FLICK FIRST/.test(b.small),
       'the toss announces who flicks first');
+  }
+
+  /* the drag tutorial demos on the canvas until the first flick dismisses it */
+  {
+    M.G.mode = 'hot'; M.G.diff = 'casual'; M.G.deskId = 'wood'; M.G.penIds = ['bic', 'bic'];
+    M.setSeed(0x7EED); M.G.tutor = true;
+    M.newMatch();
+    for (let i = 0; i < 30; i++) frame();   // 30 aim frames with the demo animating over them
+    const showing = M.G.tutor;              // nobody has grabbed — still coaching
+    M.fireShot();                           // G.shot already holds a legal default aim
+    ok(showing && !M.G.tutor && !M.G.shot.on,
+      'the drag tutorial shows during aim and dismisses on the first flick');
   }
 
   netPlaySuite();

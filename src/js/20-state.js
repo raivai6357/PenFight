@@ -15,6 +15,7 @@ const G = {
   waitT: 0,
   pendingRound: null,
   sound: true,
+  tutor: true,       // the drag tutorial — dismissed on the player's first grab
   shake: 0,
   banner: null,
   lastBanner: null,
@@ -27,3 +28,7 @@ const HUES = ["#5a72ea", "#e2503f"];
 const HUES_DEEP = ["#2b3a9e", "#9a2b21"];
 const TARGET = 2;      // best of three
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* returning players (same browser) don't need the tutorial again; headless
+   and file:// runs have no usable localStorage and simply keep it on */
+try { if (localStorage.getItem("dd_tutored")) G.tutor = false; } catch (e) {}

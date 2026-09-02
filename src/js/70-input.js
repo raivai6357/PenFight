@@ -34,6 +34,7 @@ cv.addEventListener("pointerdown", (ev) => {
   const pen = G.W.pens[G.turn];
   const t = hitPen(pen, p.x, p.y, touchSlop());
   if (t === null) return;
+  if (G.tutor) tutorDone();   // they found the grab — the demo can stop
   cv.setPointerCapture(ev.pointerId);
   cv.focus({ preventScroll: true });
   audio();

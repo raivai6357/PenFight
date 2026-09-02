@@ -81,10 +81,17 @@ function resetShot() {
   if (G.mode === "cpu" && G.turn === 1) beginCPU();
 }
 
+/* the drag tutorial has done its job — remember that, per browser */
+function tutorDone() {
+  G.tutor = false;
+  try { localStorage.setItem("dd_tutored", "1"); } catch (e) { /* headless or file:// */ }
+}
+
 function fireShot(shot) {
   const W = G.W, pen = W.pens[G.turn], S = G.shot;
   const p = shot || { angle: S.angle, power: S.power, grabT: S.grabT };
   if (!pen.alive || p.power < 0.05) return;
+  if (G.tutor) tutorDone();
   pen.trail.length = 0;
   flick(pen, p.angle, p.power, p.grabT);
   sfxFlick(p.power);
