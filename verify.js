@@ -106,8 +106,8 @@ const kinetic = (W) => {
   ok(held >= 10, `${held}/12 full-power mid-desk shots stay on behind the wood/glass rails`);
 }
 
-/* the corners are the only way out — and a skill shot, not a coin flip:
-   most random full-power flicks stay on, but some still find a gap */
+/* the corners are the way out — the notches are cut wide on purpose (the
+   round should be winnable), but the rails still keep most random shots on */
 {
   let out = 0, trials = 0;
   P.setSeed(0xC0FFEE);
@@ -131,8 +131,8 @@ const kinetic = (W) => {
   }
   P.setSeed(0x5EED);
   const rate = out / trials;
-  ok(rate < 0.3 && out > 0,
-    `random full-power shots stay on ${(100 * (1 - rate)).toFixed(0)}% of the time — corners are the only way out`);
+  ok(rate < 0.45 && rate > 0.1,
+    `random full-power shots stay on ${(100 * (1 - rate)).toFixed(0)}% of the time — the wide corners are the way out`);
 }
 
 /* the grab point is a real lever arm — this is the whole skill mechanic */

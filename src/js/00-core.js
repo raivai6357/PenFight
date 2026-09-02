@@ -67,10 +67,10 @@ const penById = (id) => PENS.find(p => p.id === id) || PENS[0];
    knock-off means actually working the pen to a gap. */
 const DESKS = [
   { id:"wood",  name:"Wooden Desk",   note:"grippy, edged",  mu:1.35,
-    arena:{ x:72, y:58, w:856, h:452 }, lip:true, gap:64, rail:9 },
+    arena:{ x:72, y:58, w:856, h:452 }, lip:true, gap:88, rail:9 },
   { id:"glass", name:"Glass Table",   note:"slides, framed", mu:0.55,
-    arena:{ x:96, y:64, w:808, h:440 }, lip:true, gap:56, rail:8 },
+    arena:{ x:96, y:64, w:808, h:440 }, lip:true, gap:78, rail:8 },
   { id:"tray",  name:"Cafeteria Tray",note:"walled tight",  mu:0.95,
-    arena:{ x:236, y:92, w:528, h:396 }, lip:true, gap:50, rail:10 }
+    arena:{ x:236, y:92, w:528, h:396 }, lip:true, gap:68, rail:10 }
 ];
 const deskById = (id) => DESKS.find(d => d.id === id) || DESKS[0];
