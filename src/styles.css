@@ -59,6 +59,11 @@ body{
   position:relative;z-index:1;
   min-height:100vh;
   min-height:100dvh;
+  /* definite, not just a floor: with only a min-height the shell grows to
+     fit a width-driven frame and the page overflows the fold — the desk
+     clips and the footer/toss bar land off-screen on landscape phones */
+  height:100vh;
+  height:100dvh;
   display:flex;flex-direction:column;
   gap:clamp(8px,1.4vh,18px);
   padding:clamp(10px,2vh,22px) clamp(10px,2.4vw,28px) clamp(12px,2vh,20px);
@@ -444,6 +449,11 @@ legend{
   .tag .who{font-size:16px}
   .hint{display:none}
   .foot{flex-wrap:nowrap}
+  /* sideways phones are wider than the 620px cutoff, so the portrait rule
+     misses them — but the frame is a short strip here, and the paper
+     deserves the whole screen while you set the match up */
+  .sheet-wrap{position:fixed;inset:0;z-index:20;border-radius:0;
+    padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom))}
 }
 
 /* ─────────── touch pointers: fingers are bigger than cursors ─────────── */
