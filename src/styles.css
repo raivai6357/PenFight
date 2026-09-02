@@ -139,6 +139,10 @@ body{
   flex:1;min-height:0;
   display:grid;
   grid-template-columns:minmax(0,1fr);
+  /* a definite row — without it the row is content-sized and .frame's
+     max-height:100% resolves against itself, so a landscape phone renders
+     the desk ~1.4× too tall and pushes the footer + toss bar off-screen */
+  grid-template-rows:minmax(0,1fr);
   place-items:center;
   position:relative;
 }
@@ -434,7 +438,7 @@ legend{
 }
 
 /* ─────────── short viewports (phones held sideways) ─────────── */
-@media (max-height:540px){
+@media (max-height:640px){
   .shell{gap:5px;padding:5px 10px 7px}
   .count{font-size:28px}
   .tag .who{font-size:16px}
