@@ -429,6 +429,8 @@ function loop(now) {
     if (G.banner.life <= 0) G.banner = null;
   }
 
-  draw();
+  /* the setup/result sheet fully covers the desk (fixed fullscreen on
+     phones) — repainting the arena under it every frame is pure waste */
+  if (el("setupWrap").hidden && el("resultWrap").hidden) draw();
   requestAnimationFrame(loop);
 }

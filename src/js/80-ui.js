@@ -227,9 +227,37 @@ el("clutterBtn").addEventListener("click", () => {
   sendCfg();
 });
 
+/* ── fullscreen + landscape (phones) ──
+   The Fullscreen API needs a user gesture, so the ask rides on the buttons
+   a player is tapping anyway. Android Chrome only honours the orientation
+   lock while in fullscreen; iOS Safari has no element fullscreen at all and
+   just rejects — the game still plays fine windowed there. */
+async function goFS() {
+  try {
+    if (!document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+      const so = typeof screen === "object" && screen.orientation;
+      if (so && so.lock) await so.lock("landscape").catch(() => {});
+    } else {
+      await document.exitFullscreen();
+    }
+  } catch (e) { /* denied or unsupported — the windowed game is unchanged */ }
+}
+const COARSE = matchMedia("(pointer:coarse)").matches;
+function wantFS() {   // a phone asked to play full-screen, on its side
+  return COARSE && !document.fullscreenElement;
+}
+el("fsBtn").addEventListener("click", goFS);
+document.addEventListener("fullscreenchange", () => {
+  const on = !!document.fullscreenElement;
+  el("fsBtn").setAttribute("aria-pressed", String(on));
+  el("fsBtn").textContent = on ? "Exit full" : "Fullscreen";
+});
+
 el("startBtn").addEventListener("click", () => {
   if (G.mode === "net" && (!NET.on || NET.role !== 0)) return;   // only the host deals
   audio();
+  if (wantFS()) goFS();
   el("setupWrap").hidden = true;
   el("resultWrap").hidden = true;
   surf = null; surfKey = "";
@@ -263,6 +291,7 @@ function showResult() {
 }
 el("againBtn").addEventListener("click", () => {
   if (G.mode === "net" && (!NET.on || NET.role !== 0)) return;
+  if (wantFS()) goFS();
   el("resultWrap").hidden = true;
   newMatch();
   cv.focus({ preventScroll: true });

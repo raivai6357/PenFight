@@ -62,15 +62,15 @@ const penById = (id) => PENS.find(p => p.id === id) || PENS[0];
 /* ── the three surfaces ──────────────────────────────────────────────── */
 /* every desk has a raised edge: four rails with the corners left open, so
    a pen has to be driven out through a gap — no more one-shot rounds off
-   a bare edge. gap = corner opening, rail = rail thickness. The corners
-   are tuned so a random full-power shot stays on ~4 times out of 5; a
-   knock-off means actually working the pen to a gap. */
+   a bare edge. gapX = corner opening for the long top/bottom rails (they
+   sit well short of the desk's ends), gapY = opening for the short side
+   rails, rail = rail thickness. */
 const DESKS = [
   { id:"wood",  name:"Wooden Desk",   note:"grippy, edged",  mu:1.35,
-    arena:{ x:72, y:58, w:856, h:452 }, lip:true, gap:88, rail:9 },
+    arena:{ x:72, y:58, w:856, h:452 }, lip:true, gapX:175, gapY:88, rail:9 },
   { id:"glass", name:"Glass Table",   note:"slides, framed", mu:0.55,
-    arena:{ x:96, y:64, w:808, h:440 }, lip:true, gap:78, rail:8 },
+    arena:{ x:96, y:64, w:808, h:440 }, lip:true, gapX:155, gapY:78, rail:8 },
   { id:"tray",  name:"Cafeteria Tray",note:"walled tight",  mu:0.95,
-    arena:{ x:236, y:92, w:528, h:396 }, lip:true, gap:68, rail:10 }
+    arena:{ x:236, y:92, w:528, h:396 }, lip:true, gapX:135, gapY:68, rail:10 }
 ];
 const deskById = (id) => DESKS.find(d => d.id === id) || DESKS[0];

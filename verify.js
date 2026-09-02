@@ -238,7 +238,7 @@ const mkEl = (id) => {
   return e;
 };
 const cache = {};
-globalThis.document = { getElementById: (id) => (cache[id] ||= mkEl(id)), createElement: (t) => mkEl(t) };
+globalThis.document = { getElementById: (id) => (cache[id] ||= mkEl(id)), createElement: (t) => mkEl(t), addEventListener() {}, fullscreenElement: null };
 globalThis.window = { devicePixelRatio: 1 };
 globalThis.matchMedia = () => ({ matches: false });
 globalThis.ResizeObserver = class { observe() {} };

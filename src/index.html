@@ -6,6 +6,11 @@
      fights the browser's scrolling and zooming -->
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#13151c">
+<!-- installed-to-homescreen phones run chrome-less; iOS Safari has no element
+     fullscreen, so this is its only route to an all-screen game -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Desk Duel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -160,6 +165,7 @@
     <span class="rotate-tip">Rotate for a bigger desk</span>
     <div class="tools">
       <span class="keys"><kbd>&larr;</kbd><kbd>&rarr;</kbd> aim &nbsp;<kbd>&uarr;</kbd><kbd>&darr;</kbd> power &nbsp;<kbd>Space</kbd> flick</span>
+      <button class="tool" type="button" id="fsBtn" aria-pressed="false">Fullscreen</button>
       <button class="tool" type="button" id="soundBtn" aria-pressed="true">Sound on</button>
       <button class="tool" type="button" id="quitBtn">New match</button>
     </div>

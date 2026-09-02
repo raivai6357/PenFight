@@ -8,7 +8,10 @@ let view = { s: 1, ox: 0, oy: 0 };
 
 function fitCanvas() {
   const r = cv.getBoundingClientRect();
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  /* fingers don't need retina: on touch devices cap the backing store lower —
+     the fill cost of a dpr-3 phone screen is the single biggest frame expense */
+  const coarse = matchMedia("(pointer:coarse)").matches;
+  const dpr = Math.min(window.devicePixelRatio || 1, coarse ? 1.5 : 2);
   cv.width = Math.max(1, Math.round(r.width * dpr));
   cv.height = Math.max(1, Math.round(r.height * dpr));
   const s = Math.min(cv.width / CW, cv.height / CH);
@@ -422,16 +425,16 @@ function drawIdleDesk() {
 }
 
 function drawLip(A, desk) {
-  const g = desk.gap || 78, r = desk.rail || 9;
+  const gx = desk.gapX || desk.gap || 78, gy = desk.gapY || desk.gap || 78, r = desk.rail || 9;
   // each desk's edge wears its own material
   const col = desk.id === "wood"  ? ["#8a6a42", "#5d452a", "rgba(236,206,158,.3)"]
             : desk.id === "glass" ? ["#a9c3d4", "#5d7686", "rgba(232,248,255,.32)"]
             :                       ["#6d8081", "#4a5b5d", "rgba(210,228,226,.24)"];
   const rails = [
-    [A.x + g, A.y, A.x + A.w - g, A.y],
-    [A.x + g, A.y + A.h, A.x + A.w - g, A.y + A.h],
-    [A.x, A.y + g, A.x, A.y + A.h - g],
-    [A.x + A.w, A.y + g, A.x + A.w, A.y + A.h - g]
+    [A.x + gx, A.y, A.x + A.w - gx, A.y],
+    [A.x + gx, A.y + A.h, A.x + A.w - gx, A.y + A.h],
+    [A.x, A.y + gy, A.x, A.y + A.h - gy],
+    [A.x + A.w, A.y + gy, A.x + A.w, A.y + A.h - gy]
   ];
   for (const [ax, ay, bx, by] of rails) {
     ctx.save();
