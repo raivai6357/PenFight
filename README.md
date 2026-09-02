@@ -4,7 +4,9 @@ Two pens. One desk. Knock theirs off twice and it's yours.
 
 A turn-based pen-flicking game — drag back from your own pen like a
 slingshot and let go. Grab near the tip and it spins as it flies; glancing
-blows send theirs cartwheeling. Play the desk (computer), hot seat, or a
+blows send theirs cartwheeling. A coin toss decides who flicks first; every
+desk has a raised edge with the corners left open, so knocking a pen off
+means working it to a gap. Play the desk (computer), hot seat, or a
 friend over the network.
 
 **Zero dependencies.** The physics is a hand-rolled rigid-body solver, the
@@ -16,7 +18,7 @@ npm packages, no bundler.
 | command | what it does |
 |---|---|
 | `npm run build` | assembles `src/` → `dist/desk-duel.html` (or `node build.js`) |
-| `npm test` | rebuilds, then runs the regression harness: 28 checks over the solver, the real turn flow, net play between two game instances (including a 60 Hz host vs a 144 Hz guest), and the relay server over real HTTP |
+| `npm test` | rebuilds, then runs the regression harness: 30 checks over the solver, the real turn flow, net play between two game instances (including a 60 Hz host vs a 144 Hz guest), and the relay server over real HTTP |
 | `npm run serve` | rebuilds, serves the game + the multiplayer relay on http://localhost:3000 |
 
 `dist/desk-duel.html` is the only file that gets published — one

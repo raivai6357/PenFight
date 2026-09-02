@@ -389,7 +389,7 @@ function draw() {
   roundRectPath(ctx, A.x + 0.7, A.y + 0.7, A.w - 1.4, A.h - 1.4, 4);
   ctx.stroke();
 
-  if (desk.lip) drawLip(A);
+  if (desk.lip) drawLip(A, desk);
 
   // shadows, then bodies
   for (const b of W.bodies) if (!b.stat) drawShadow(b);
@@ -412,10 +412,15 @@ function drawIdleDesk() {
   ctx.restore();
   ctx.strokeStyle = "rgba(255,255,255,.1)"; ctx.lineWidth = 1.4;
   roundRectPath(ctx, A.x + .7, A.y + .7, A.w - 1.4, A.h - 1.4, 4); ctx.stroke();
+  if (d.lip) drawLip(A, d);
 }
 
-function drawLip(A) {
-  const g = 78, r = 9;
+function drawLip(A, desk) {
+  const g = desk.gap || 78, r = desk.rail || 9;
+  // each desk's edge wears its own material
+  const col = desk.id === "wood"  ? ["#8a6a42", "#5d452a", "rgba(236,206,158,.3)"]
+            : desk.id === "glass" ? ["#a9c3d4", "#5d7686", "rgba(232,248,255,.32)"]
+            :                       ["#6d8081", "#4a5b5d", "rgba(210,228,226,.24)"];
   const rails = [
     [A.x + g, A.y, A.x + A.w - g, A.y],
     [A.x + g, A.y + A.h, A.x + A.w - g, A.y + A.h],
@@ -428,10 +433,10 @@ function drawLip(A) {
     ctx.strokeStyle = "rgba(10,16,16,.5)"; ctx.lineWidth = r * 2 + 4;
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
     const grd = ctx.createLinearGradient(ax, ay - r, bx, by + r);
-    grd.addColorStop(0, "#6d8081"); grd.addColorStop(1, "#4a5b5d");
+    grd.addColorStop(0, col[0]); grd.addColorStop(1, col[1]);
     ctx.strokeStyle = grd; ctx.lineWidth = r * 2;
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
-    ctx.strokeStyle = "rgba(210,228,226,.24)"; ctx.lineWidth = 2;
+    ctx.strokeStyle = col[2]; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(ax, ay - r * 0.45); ctx.lineTo(bx, by - r * 0.45); ctx.stroke();
     ctx.restore();
   }

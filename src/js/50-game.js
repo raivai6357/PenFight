@@ -1,9 +1,18 @@
 /* ══════════════════════════════════════════════════════════════════════
    TURN FLOW
    ══════════════════════════════════════════════════════════════════════ */
+/* how a seat is named on screen — the net seats read from your side of
+   the table, the local ones from the sideline */
+function seatName(t) {
+  return G.mode === "net" ? (t === NET.role ? "YOU" : "YOUR FRIEND") : NAMES[t].toUpperCase();
+}
+
 function newMatch() {
-  G.score = [0, 0]; G.round = 1; G.turn = 0;
+  G.score = [0, 0]; G.round = 1;
   G.lastBanner = null;
+  // the toss decides who flicks first — later rounds go to whoever's behind
+  G.turn = Math.random() < 0.5 ? 0 : 1;
+  banner("THE TOSS", `${seatName(G.turn)} FLICK FIRST`, HUES[G.turn]);
   startRound();
   syncBoard();
 }
@@ -55,7 +64,10 @@ function startRoundFromNet(m) {
   G.lastBanner = m.banner || null;
   beginRound();
   restoreSnap(G.W, m.snap);
-  if (m.banner) banner(m.banner.big, m.banner.small, m.banner.hue);
+  /* round 1 comes with the toss result — but the toss banner is written
+     from each side's own seat, so the host's wording can't be reused */
+  if (m.round === 1) banner("THE TOSS", `${seatName(m.turn)} FLICK FIRST`, HUES[m.turn]);
+  else if (m.banner) banner(m.banner.big, m.banner.small, m.banner.hue);
   syncBoard();
 }
 
@@ -101,9 +113,7 @@ function resolveTurn() {
       const winner = p1out ? 1 : 0;
       G.score[winner]++;
       const done = G.score[winner] >= TARGET;
-      const nm = G.mode === "net"
-        ? (winner === NET.role ? "YOU" : "YOUR FRIEND")
-        : NAMES[winner].toUpperCase();
+      const nm = seatName(winner);
       banner(
         `${nm} SCORES`,
         done ? "That's the match." : `${G.score[0]}–${G.score[1]} · round ${G.round + 1} next`,

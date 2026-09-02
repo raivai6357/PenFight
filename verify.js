@@ -70,7 +70,8 @@ const kinetic = (W) => {
   ok(stopped >= 18 && avg < 8, `${stopped}/20 contained pens reach full rest, avg ${avg.toFixed(2)}s`);
 }
 
-/* a clean broadside at full power knocks the target off */
+/* a clean broadside at full power, aimed through the open corner, knocks
+   the target off — mid-desk shots now stay in behind the rail (see below) */
 {
   const d = P.deskById('wood'), A = d.arena;
   let knocked = 0;
@@ -78,12 +79,31 @@ const kinetic = (W) => {
     const W = P.buildWorld(d, ['bic', 'bic']);
     W.bodies = W.bodies.filter(b => b.tag !== 'obj');
     const me = W.pens[0], foe = W.pens[1];
-    me.y = foe.y = A.y + A.h / 2; me.a = foe.a = Math.PI / 2;
+    me.y = foe.y = A.y + 60;   // above the side rail's reach — the corner is open
+    me.a = foe.a = Math.PI / 2;
     P.flick(me, 0, 1.0, 0);
     for (let i = 0; i < 420; i++) { P.stepWorld(W, 1 / 60); P.checkOut(W); }
     if (!foe.alive) knocked++;
   }
-  ok(knocked >= 9, `${knocked}/12 full-power broadside hits send the target off`);
+  ok(knocked >= 9, `${knocked}/12 broadsides through the open corner send the target off`);
+}
+
+/* the point of the rails: a straight full-power shot at mid-desk bounces
+   off the edge and STAYS ON — the round is no longer one shot long */
+{
+  let held = 0;
+  for (const id of ['wood', 'glass']) {
+    const d = P.deskById(id), A = d.arena;
+    for (let t = 0; t < 6; t++) {
+      const W = P.buildWorld(d, ['bic', 'bic'], true);
+      const p = W.pens[0];
+      p.x = A.x + A.w / 2; p.y = A.y + A.h / 2; p.a = 0;
+      P.flick(p, 0, 1.0, 0);
+      for (let i = 0; i < 420; i++) { P.stepWorld(W, 1 / 60); P.checkOut(W); }
+      if (p.alive) held++;
+    }
+  }
+  ok(held >= 10, `${held}/12 full-power mid-desk shots stay on behind the wood/glass rails`);
 }
 
 /* the grab point is a real lever arm — this is the whole skill mechanic */
@@ -269,6 +289,17 @@ try {
 
   const r = play('cpu', 'sharp', 'wood', ['bic', 'bic'], 10, 120000);
   ok(r.cpuWins >= 6, `sharp computer beats a random player ${r.cpuWins}/10 — the search is doing work`);
+
+  /* the toss: round 1 must sometimes go to each side, and must be announced */
+  {
+    let blueFirst = 0;
+    for (let i = 0; i < 40; i++) { M.newMatch(); if (M.G.turn === 0) blueFirst++; }
+    const b = M.G.banner;
+    ok(blueFirst > 5 && blueFirst < 35,
+      `the toss is a real coin — Blue flicks first ${blueFirst}/40 matches`);
+    ok(b && b.big === 'THE TOSS' && /FLICK FIRST/.test(b.small),
+      'the toss announces who flicks first');
+  }
 
   netPlaySuite();
 } catch (e) { thrown = e; }

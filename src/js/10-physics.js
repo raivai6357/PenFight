@@ -61,18 +61,18 @@ const CLUTTER = [
       x, y, a, m:0.34, grip:0.8, rest:0.5, fric:0.24 }) }
 ];
 
-/* the tray lip: four rails with the corners left open, so a pen that
-   rattles around can still be driven out through a gap */
-function lipWalls(A) {
-  const g = 78, r = 9;
+/* the raised edge: four rails with the corners left open, so a pen that
+   rattles around can still be driven out through a gap. Each desk sets its
+   own corner opening and rail thickness. */
+function lipWalls(A, gap, r) {
   const seg = (ax, ay, bx, by) => ({ ax, ay, bx, by, r });
   return makeBody({
     wall: true, tag: "wall", rest: 0.46, fric: 0.24,
     segs: [
-      seg(A.x + g, A.y, A.x + A.w - g, A.y),
-      seg(A.x + g, A.y + A.h, A.x + A.w - g, A.y + A.h),
-      seg(A.x, A.y + g, A.x, A.y + A.h - g),
-      seg(A.x + A.w, A.y + g, A.x + A.w, A.y + A.h - g)
+      seg(A.x + gap, A.y, A.x + A.w - gap, A.y),
+      seg(A.x + gap, A.y + A.h, A.x + A.w - gap, A.y + A.h),
+      seg(A.x, A.y + gap, A.x, A.y + A.h - gap),
+      seg(A.x + A.w, A.y + gap, A.x + A.w, A.y + A.h - gap)
     ]
   });
 }
@@ -82,7 +82,7 @@ function buildWorld(desk, penIds, bare) {
   const A = desk.arena;
   const W = { desk, arena: A, mu: desk.mu, bodies: [], walls: [], fx: true, impacts: [], onOut: null };
 
-  if (desk.lip) { const wl = lipWalls(A); W.walls.push(wl); W.bodies.push(wl); }
+  if (desk.lip) { const wl = lipWalls(A, desk.gap || 78, desk.rail || 9); W.walls.push(wl); W.bodies.push(wl); }
 
   const cy = A.y + A.h / 2;
   const p1 = makePen(penById(penIds[0]), 0, A.x + A.w * 0.19, cy + rnd(-A.h * 0.1, A.h * 0.1), rnd(-1.25, 1.25));
