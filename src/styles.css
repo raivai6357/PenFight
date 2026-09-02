@@ -265,9 +265,12 @@ legend{
 .pen-opt[aria-pressed="true"]{border-color:var(--paper-ink);background:rgba(255,255,255,.85)}
 .pen-opt:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 .pen-opt:disabled .art{opacity:.7}
+/* wrap the whole quip to its own line when the card is too narrow for both —
+   without this the name and the quip each wrap mid-text and interleave
+   ("Mechanical / light and / Pencil / clicky") */
 .pen-opt .nm{
   font-family:var(--f-body);font-size:12.5px;font-weight:600;color:var(--paper-ink);
-  display:flex;justify-content:space-between;align-items:baseline;gap:6px;
+  display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px;
 }
 .pen-opt .nm em{
   font-family:var(--f-hand);font-style:normal;font-size:13.5px;color:var(--paper-dim);
