@@ -10,10 +10,8 @@ function bumpCount(i) {
 function syncBoard() {
   el("s1").textContent = G.score[0];
   el("s2").textContent = G.score[1];
-  el("n1").textContent = G.mode === "net" ? (NET.role === 0 ? "You" : "Friend")
-    : G.mode === "cpu" ? "You" : "Blue";
-  el("n2").textContent = G.mode === "net" ? (NET.role === 0 ? "Friend" : "You")
-    : G.mode === "cpu" ? "The Desk" : "Red";
+  el("n1").textContent = dispName(0);
+  el("n2").textContent = dispName(1);
   el("w1").textContent = penById(G.penIds[0]).name;
   el("w2").textContent = penById(G.penIds[1]).name;
   for (let p = 0; p < 2; p++) {
@@ -40,13 +38,14 @@ function syncBoard() {
   let txt = "", cls = "neutral";
   if (G.phase === "setup") txt = "Choose your weapon";
   else if (G.phase === "over") txt = "Match over";
+  else if (G.phase === "toss") txt = "The toss";
   else if (G.phase === "score") txt = "…";
   else if (G.phase === "cpu") { txt = "The desk is aiming"; cls = "red"; }
   else if (G.phase === "sim") { txt = "In flight"; cls = "neutral"; }
   else {
     const who = G.mode === "cpu" ? (G.turn === 0 ? "Your" : "Its")
-      : G.mode === "net" ? (G.turn === NET.role ? "Your" : "Friend's")
-      : `${NAMES[G.turn]}'s`;
+      : G.mode === "net" ? (G.turn === NET.role ? "Your" : `${dispName(G.turn)}'s`)
+      : `${dispName(G.turn)}'s`;
     txt = `${who} flick`;
     cls = G.turn ? "red" : "blue";
   }
@@ -55,7 +54,9 @@ function syncBoard() {
 
   el("hint").innerHTML = G.phase === "setup"
     ? "Grab your pen near the <b>tip</b> and it'll spin as it flies&mdash;glancing blows send theirs cartwheeling."
-    : (G.mode === "cpu" && G.turn === 1 && G.phase !== "aim"
+    : G.phase === "toss"
+        ? "Heads or tails &mdash; whoever calls it right flicks first."
+        : (G.mode === "cpu" && G.turn === 1 && G.phase !== "aim"
         ? "It's running the angles. Wooden desks stop a pen dead; glass does not."
         : (G.mode === "net" && G.phase === "aim" && G.turn !== NET.role
             ? "Your friend is lining it up&hellip;"
@@ -136,12 +137,82 @@ function bindToggle(hostId, key, attr, after) {
     if (after) after();
   });
 }
+
+/* ── the players' names ── */
+let MY_NAME = "";
+try { MY_NAME = localStorage.getItem("dd_name") || ""; } catch (e) { /* headless or file:// */ }
+
+/* which seat is yours in the current mode */
+function mySeat() { return G.mode === "net" ? NET.role : 0; }
+
+/* relabel and relock the two name slots for the mode at hand, and reset the
+   slots that aren't yours (the friend's name is theirs to send, the desk
+   doesn't get one at all) */
+function applyModeToNames() {
+  const my = mySeat();
+  if (G.mode === "net") {
+    if (MY_NAME) G.names[my] = MY_NAME;
+    G.names[1 - my] = NET.peerName || "";
+  } else if (G.mode === "cpu") {
+    G.names[1] = "";   // "The Desk" is the placeholder, not a choice
+  } else {
+    // hot seat: shake off the mode defaults so both slots are free to fill
+    for (let s = 0; s < 2; s++) {
+      if (["", "You", "Friend", "The Desk"].includes(G.names[s])) G.names[s] = "";
+    }
+  }
+  const lbl = (s) => G.mode === "hot" ? (s ? "Red's name" : "Blue's name")
+    : s === my ? "Your name"
+    : G.mode === "cpu" ? "Its name" : "Your friend's name";
+  el("nameLbl0").textContent = lbl(0);
+  el("nameLbl1").textContent = lbl(1);
+  const in0 = el("nameIn0"), in1 = el("nameIn1");
+  in0.disabled = G.mode === "net" && NET.role === 1;
+  in1.disabled = G.mode === "cpu" || (G.mode === "net" && NET.role === 0);
+  in0.value = G.names[0]; in1.value = G.names[1];
+  in0.placeholder = seatDefault(0); in1.placeholder = seatDefault(1);
+  syncBoard();
+}
+
+for (let s = 0; s < 2; s++) {
+  const inp = el(s ? "nameIn1" : "nameIn0");
+  inp.addEventListener("input", () => {
+    G.names[s] = inp.value.replace(/\s+/g, " ").trimStart().slice(0, 12);
+    if (s === mySeat() && G.names[s].trim()) {
+      MY_NAME = G.names[s].trim();
+      try { localStorage.setItem("dd_name", MY_NAME); } catch (e) { /* headless or file:// */ }
+    }
+    if (G.mode === "net" && NET.on && s === NET.role) sendCfg();
+    syncBoard();
+  });
+}
+
+/* ── the toss bar ── */
+function updateTossUI() {
+  const bar = el("tossBar");
+  if (G.phase !== "toss" || !G.toss) { bar.hidden = true; return; }
+  bar.hidden = false;
+  const mine = G.mode !== "net" || NET.role === 1;   // the guest calls it
+  const h = el("tossHeads"), t = el("tossTails");
+  const lock = !mine || !!G.toss.call;
+  h.disabled = lock; t.disabled = lock;
+  h.setAttribute("aria-pressed", String(G.toss.call === "heads"));
+  t.setAttribute("aria-pressed", String(G.toss.call === "tails"));
+  el("tossSub").textContent =
+    !mine ? `${dispName(tossCaller())} is calling the toss…`
+    : G.toss.call ? "The coin is up…"
+    : (G.mode === "hot" ? `${dispName(0)} — heads or tails?` : "Call it — heads or tails?");
+}
+el("tossHeads").addEventListener("click", () => { audio(); callToss("heads"); });
+el("tossTails").addEventListener("click", () => { audio(); callToss("tails"); });
+
 bindToggle("modeOpts", "mode", "mode", () => {
   el("diffRow").style.display = G.mode === "cpu" ? "" : "none";
   el("netRow").hidden = G.mode !== "net";
   el("pickLbl1").textContent = G.mode === "hot" ? "Blue picks" : "You pick";
   el("pickLbl2").textContent = G.mode === "cpu" ? "It picks" : G.mode === "net" ? "Your friend picks" : "Red picks";
   if (G.mode !== "net") NET.leave();   // leaving net mode drops the room, tells the peer
+  applyModeToNames();
   refreshPickers();
 });
 bindToggle("diffOpts", "diff", "diff");
@@ -173,13 +244,13 @@ function showResult() {
   t.textContent = G.mode === "cpu"
     ? (w === 0 ? "You take the desk" : "The desk takes you")
     : G.mode === "net"
-      ? (w === NET.role ? "You take the desk" : "Your friend takes it")
-      : `${NAMES[w]} wins`;
+      ? (w === NET.role ? "You take the desk" : `${dispName(w)} takes it`)
+      : `${dispName(w)} wins`;
   t.className = w ? "red" : "blue";
   el("vSub").textContent = `${G.score[w]}–${G.score[1 - w]} on the ${deskById(G.deskId).name.toLowerCase()}.`;
   el("vTally").innerHTML =
-    `<span>Blue&rsquo;s pen <b>${penById(G.penIds[0]).name}</b></span>` +
-    `<span>Red&rsquo;s pen <b>${penById(G.penIds[1]).name}</b></span>` +
+    `<span>${dispName(0)}&rsquo;s pen <b>${penById(G.penIds[0]).name}</b></span>` +
+    `<span>${dispName(1)}&rsquo;s pen <b>${penById(G.penIds[1]).name}</b></span>` +
     `<span>Rounds played <b>${G.round}</b></span>`;
   // online, the host drives what happens next
   const lock = G.mode === "net" && NET.role === 1;
@@ -201,14 +272,16 @@ el("changeBtn").addEventListener("click", () => {
   if (G.mode === "net") NET.send({ t: "setup" });
   el("resultWrap").hidden = true;
   el("setupWrap").hidden = false;
-  G.phase = "setup"; G.W = null;
+  G.phase = "setup"; G.W = null; G.toss = null;
+  updateTossUI();
   syncBoard();
 });
 el("quitBtn").addEventListener("click", () => {
   if (G.mode === "net" && NET.on) NET.leave();   // the peer is told we've gone
   el("resultWrap").hidden = true;
   el("setupWrap").hidden = false;
-  G.phase = "setup"; G.W = null; CPU = null;
+  G.phase = "setup"; G.W = null; CPU = null; G.toss = null;
+  updateTossUI();
   syncBoard();
 });
 el("soundBtn").addEventListener("click", (ev) => {
@@ -256,5 +329,6 @@ el("netCode").addEventListener("keydown", (ev) => {
 
 /* go */
 fitCanvas();
+applyModeToNames();
 syncBoard();
 requestAnimationFrame(loop);

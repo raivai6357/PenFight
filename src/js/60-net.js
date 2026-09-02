@@ -10,6 +10,7 @@ const NET = {
   token: "",
   base: "",
   es: null,
+  peerName: "",       // what the friend calls themselves, heard from their cfg
   lastFlick: null,   // our last announced flick, kept for a resend if it got lost
   tries: 0,
 
@@ -59,7 +60,7 @@ const NET = {
   },
   reset() {
     if (this.es) { this.es.close(); this.es = null; }
-    this.on = false; this.room = ""; this.token = ""; this.role = 0;
+    this.on = false; this.room = ""; this.token = ""; this.role = 0; this.peerName = "";
   },
 };
 
@@ -74,13 +75,17 @@ function refreshPickers() {
   el("startBtn").disabled = locked;
   el("startBtn").textContent = locked ? "Waiting for host…" : "Flick off";
   el("clutterBtn").setAttribute("aria-pressed", String(G.clutter));
+  applyModeToNames();   // the seat (and so the name slots) can change on connect
 }
 
-/* the desk and the clutter are shared — either seat can change them and the
-   pick syncs to both. Each seat additionally broadcasts its own pen. */
+/* the desk, the clutter and the players' names are shared — either seat can
+   change them and the pick syncs to both. Each seat additionally broadcasts
+   its own pen and its own name. */
 function sendCfg() {
   if (G.mode !== "net" || !NET.on) return;
   const m = { t: "cfg", desk: G.deskId, clutter: G.clutter };
+  const nm = (G.names[NET.role] || "").trim();
+  if (nm) m.name = nm.slice(0, 12);
   if (NET.role === 0) m.pen0 = G.penIds[0]; else m.pen1 = G.penIds[1];
   NET.send(m);
 }
@@ -90,6 +95,8 @@ function netPeerGone(why) {
   el("resultWrap").hidden = true;
   el("setupWrap").hidden = false;
   G.phase = "setup"; G.W = null; CPU = null;
+  G.toss = null;
+  updateTossUI();
   netStatus(`${why}. Create or join a room to try again.`);
   refreshPickers();
   syncBoard();
@@ -102,7 +109,7 @@ function netDispatch(m) {
       return;
     case "peer-joined":
       netStatus(NET.role === 0 ? "Your friend is here. Pick your pens!" : "Your friend is here.");
-      if (NET.role === 0) sendCfg();   // catch the newcomer up on the current picks
+      sendCfg();   // both seats trade their picks and their name
       refreshPickers();
       syncBoard();
       return;
@@ -114,8 +121,29 @@ function netDispatch(m) {
       if (m.pen0) G.penIds[0] = m.pen0;
       if (m.pen1) G.penIds[1] = m.pen1;
       if (typeof m.clutter === "boolean") G.clutter = m.clutter;
+      if (m.name) {
+        NET.peerName = String(m.name).slice(0, 12);
+        G.names[1 - NET.role] = NET.peerName;
+      }
       refreshPickers();
       syncBoard();
+      return;
+    /* the host deals a fresh match: the guest calls the opening toss */
+    case "toss":
+      if (NET.role === 1) beginToss();
+      return;
+    /* the guest's call — the host flips the coin for both */
+    case "call":
+      if (NET.role === 0 && G.phase === "toss" && G.toss && !G.toss.call) runToss(m.side);
+      return;
+    /* the host's flip — the guest animates the same coin */
+    case "flip":
+      if (NET.role === 1 && G.phase === "toss" && G.toss && G.toss.call && !G.toss.result) {
+        G.toss.call = m.side;
+        G.toss.result = m.result;
+        G.toss.t = 0;
+        updateTossUI();
+      }
       return;
     case "flick":
       // only if it's the sender's turn, and only while the desk is at rest

@@ -72,6 +72,15 @@ cv.addEventListener("pointercancel", endDrag);
 cv.addEventListener("contextmenu", (ev) => ev.preventDefault());
 
 cv.addEventListener("keydown", (ev) => {
+  /* the toss can be called from the keyboard too — H or T */
+  if (G.phase === "toss") {
+    const k = ev.key.toLowerCase();
+    if (k === "h") { audio(); callToss("heads"); }
+    else if (k === "t") { audio(); callToss("tails"); }
+    else return;
+    ev.preventDefault();
+    return;
+  }
   if (G.phase !== "aim") return;
   if (!myTurn()) return;
   const S = G.shot;

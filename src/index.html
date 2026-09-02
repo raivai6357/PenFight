@@ -49,6 +49,13 @@
       <canvas id="desk" width="1000" height="640" tabindex="0"
               aria-label="Desk arena. Drag back from your pen and release to flick it. Keyboard: arrow keys to aim, up and down to set power, space to flick."></canvas>
 
+      <!-- THE TOSS — floats over the desk while the coin is up -->
+      <div class="toss-bar" id="tossBar" hidden>
+        <span id="tossSub">Call it — heads or tails?</span>
+        <button type="button" id="tossHeads">Heads</button>
+        <button type="button" id="tossTails">Tails</button>
+      </div>
+
       <!-- SETUP -->
       <div class="sheet-wrap" id="setupWrap">
         <div class="sheet">
@@ -63,8 +70,18 @@
                   <small>vs. computer</small></button>
                 <button class="opt" type="button" data-mode="hot" aria-pressed="false">Hot seat
                   <small>2 players, one screen</small></button>
-                <button class="opt" type="button" data-mode="net" aria-pressed="false">Play a friend
-                  <small>2 screens, over the network</small></button>
+                <button class="opt" type="button" data-mode="net" aria-pressed="false">Play online
+                  <small>2 screens, share a code</small></button>
+              </div>
+            </fieldset>
+
+            <fieldset>
+              <legend>Players</legend>
+              <div class="opts" id="nameRow">
+                <label class="opt" for="nameIn0"><span id="nameLbl0">Your name</span>
+                  <small><input id="nameIn0" type="text" maxlength="12" placeholder="You" autocomplete="off" spellcheck="false"></small></label>
+                <label class="opt" for="nameIn1"><span id="nameLbl1">Its name</span>
+                  <small><input id="nameIn1" type="text" maxlength="12" placeholder="The Desk" autocomplete="off" spellcheck="false" disabled></small></label>
               </div>
             </fieldset>
 

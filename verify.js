@@ -254,7 +254,7 @@ globalThis.performance = { now: () => clock, markResourceTiming() {} };
 /* each instance is a full, independent copy of the game — the net suite
    runs two of them against each other */
 const makeGame = () => new Function(script + `
-  ;return {G, newMatch, fireShot, loop, PENS, setSeed, NET, netDispatch, snapshot, restoreSnap};`)();
+  ;return {G, newMatch, callToss, fireShot, loop, PENS, setSeed, NET, netDispatch, snapshot, restoreSnap};`)();
 const M = makeGame();
 
 /* seeded RNG for the harness's own random aim — keeps every run reproducible */
@@ -266,7 +266,7 @@ function mulberry32(t) {
     return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
   };
 }
-const PHASES = new Set(['setup', 'aim', 'sim', 'cpu', 'score', 'over']);
+const PHASES = new Set(['setup', 'aim', 'sim', 'cpu', 'score', 'toss', 'over']);
 const frame = () => { clock += 1000 / 60; M.loop(clock); };
 
 /* Plays with random aim — we are testing that the machine never breaks,
@@ -283,6 +283,7 @@ function play(mode, diff, deskId, penIds, wantMatches, cap) {
       if (G.score[1] > G.score[0]) cpuWins++;
       matches++; M.newMatch();
     }
+    if (G.phase === 'toss') M.callToss(hrng() < 0.5 ? 'heads' : 'tails');
     if (G.phase === 'aim' && (mode === 'hot' || G.turn === 0)) {
       G.shot.angle = hrng() * Math.PI * 2;
       G.shot.power = 0.25 + hrng() * 0.75;
@@ -322,15 +323,26 @@ try {
   const r = play('cpu', 'sharp', 'wood', ['bic', 'bic'], 10, 120000);
   ok(r.cpuWins >= 6, `sharp computer beats a random player ${r.cpuWins}/10 — the search is doing work`);
 
-  /* the toss: round 1 must sometimes go to each side, and must be announced */
+  /* the toss: round 1 is a called coin flip — heads or tails, caller's
+     choice, and the winner of the call flicks first */
   {
-    let blueFirst = 0;
-    for (let i = 0; i < 40; i++) { M.newMatch(); if (M.G.turn === 0) blueFirst++; }
+    M.G.mode = 'hot'; M.G.diff = 'casual'; M.G.deskId = 'wood'; M.G.penIds = ['bic', 'fountain'];
+    let callerWon = 0, opened = 0;
+    for (let i = 0; i < 40; i++) {
+      M.newMatch();
+      if (M.G.phase !== 'toss') continue;
+      opened++;
+      M.callToss(i % 2 ? 'heads' : 'tails');
+      for (let f = 0; f < 140 && M.G.phase === 'toss'; f++) frame();
+      if (M.G.turn === 0) callerWon++;
+    }
     const b = M.G.banner;
-    ok(blueFirst > 5 && blueFirst < 35,
-      `the toss is a real coin — Blue flicks first ${blueFirst}/40 matches`);
-    ok(b && b.big === 'THE TOSS' && /FLICK FIRST/.test(b.small),
-      'the toss announces who flicks first');
+    ok(opened === 40 && M.G.phase === 'aim',
+      'every match opens with a called coin toss');
+    ok(callerWon > 5 && callerWon < 35,
+      `the coin is a real coin — the caller wins it ${callerWon}/40 flips`);
+    ok(b && b.big === 'THE TOSS' && /FLICK FIRST/.test(b.small) && /^(HEADS|TAILS) /.test(b.small),
+      'the toss announces the coin and who flicks first');
   }
 
   /* the drag tutorial demos on the canvas until the first flick dismisses it */
@@ -338,6 +350,8 @@ try {
     M.G.mode = 'hot'; M.G.diff = 'casual'; M.G.deskId = 'wood'; M.G.penIds = ['bic', 'bic'];
     M.setSeed(0x7EED); M.G.tutor = true;
     M.newMatch();
+    M.callToss('heads');
+    for (let f = 0; f < 140 && M.G.phase === 'toss'; f++) frame();
     for (let i = 0; i < 30; i++) frame();   // 30 aim frames with the demo animating over them
     const showing = M.G.tutor;              // nobody has grabbed — still coaching
     M.fireShot();                           // G.shot already holds a legal default aim
@@ -378,8 +392,18 @@ function netPlaySuite() {
   const nrng = mulberry32(0x0CC0);
   const step = (I) => { clock += 1000 / 60; I.loop(clock); };
 
+  /* every match now opens with a called toss: the guest calls, the host
+     flips, and both machines animate the same coin before play begins */
+  const doToss = () => {
+    if (GG.phase === 'toss' && GG.toss && !GG.toss.call) guest.callToss(nrng() < 0.5 ? 'heads' : 'tails');
+    for (let f = 0; f < 220 && (HG.phase === 'toss' || GG.phase === 'toss'); f++) {
+      step(host); step(guest);
+    }
+  };
+
   let matches = 0, flicks = 0, frames = 0, badPhase = 0, badNum = 0, desync = 0;
   host.newMatch();
+  doToss();
   while (matches < 6 && frames < 150000) {
     // whoever's turn it is fires — both instances agree on whose turn
     if (HG.phase === 'aim' && GG.phase === 'aim' && HG.turn === GG.turn) {
@@ -405,7 +429,7 @@ function netPlaySuite() {
       if (HG.score[0] !== GG.score[0] || HG.score[1] !== GG.score[1] ||
           HG.turn !== GG.turn || HG.round !== GG.round) desync++;
     }
-    if (HG.phase === 'over') { matches++; host.newMatch(); }   // host drives the rematch
+    if (HG.phase === 'over') { matches++; host.newMatch(); doToss(); }   // host drives the rematch
   }
   ok(matches >= 6 && !badPhase && !badNum && !desync,
     `host/guest — ${matches} matches, ${flicks} relayed flicks, ${desync} desyncs, ${(frames / 60).toFixed(0)}s simulated`);
@@ -413,6 +437,19 @@ function netPlaySuite() {
   // a disconnect drops the peer back to the setup sheet
   guest.netDispatch({ t: 'peer-left' });
   ok(GG.phase === 'setup' && !guest.NET.on, 'peer-left returns the peer to the setup sheet');
+
+  /* each side learns what to call the other from the cfg exchange */
+  {
+    const h = makeGame(), g = makeGame();
+    for (const I of [h, g]) { I.G.mode = 'net'; I.NET.on = true; }
+    h.NET.role = 0; g.NET.role = 1;
+    h.NET.send = () => {}; g.NET.send = () => {};
+    h.G.names[0] = 'Ada'; g.G.names[1] = 'Grace';
+    h.netDispatch({ t: 'cfg', desk: 'wood', name: 'Grace' });
+    g.netDispatch({ t: 'cfg', desk: 'wood', name: 'Ada' });
+    ok(h.G.names[1] === 'Grace' && g.G.names[0] === 'Ada' && h.NET.peerName === 'Grace',
+      "each side hears the other's name from their cfg");
+  }
 
   /* a cfg that raced the start of the match must not decide the world: the
      round broadcast is the truth about pens, desk and clutter, and the guest
@@ -422,10 +459,14 @@ function netPlaySuite() {
     for (const I of [h, g]) { I.G.mode = 'net'; I.NET.on = true; }
     h.NET.role = 0; g.NET.role = 1;
     h.NET.send = (m) => g.netDispatch(m);
-    g.NET.send = () => {};
+    g.NET.send = (m) => h.netDispatch(m);   // the guest's toss call must reach the host
     h.G.penIds = ['quill', 'gel']; h.G.deskId = 'glass'; h.G.clutter = false;
     g.G.penIds = ['bic', 'bic'];   g.G.deskId = 'wood';  g.G.clutter = true;
     h.newMatch();   // host deals: the round message carries the full setup
+    g.callToss('heads');
+    for (let f = 0; f < 220 && (h.G.phase === 'toss' || g.G.phase === 'toss'); f++) {
+      clock += 1000 / 60; h.loop(clock); g.loop(clock);
+    }
     ok(g.G.penIds[0] === 'quill' && g.G.penIds[1] === 'gel' &&
        g.G.deskId === 'glass' && g.G.clutter === false &&
        !g.G.W.bodies.some((b) => b.tag === 'obj'),
@@ -455,7 +496,15 @@ function netPlaySuite() {
     const sig = (I) => JSON.stringify(I.G.W.bodies
       .filter((b) => !b.stat)
       .map((b) => (b.alive ? [b.x, b.y, b.a, b.vx, b.vy, b.w] : [b.alive])));
+    const doToss = () => {
+      if (GG.phase === 'toss' && GG.toss && !GG.toss.call) g.callToss(nrng() < 0.5 ? 'heads' : 'tails');
+      for (let f = 0; f < 220 && (HG.phase === 'toss' || GG.phase === 'toss'); f++) {
+        for (let i = 0; i < 5; i++) { hClock += 1000 / 60; h.loop(hClock); }
+        for (let i = 0; i < 12; i++) { gClock += 1000 / 144; g.loop(gClock); }
+      }
+    };
     h.newMatch();
+    doToss();
     while (matches < 3 && frames < 30000) {
       if (HG.phase === 'aim' && GG.phase === 'aim' && HG.turn === GG.turn) {
         const I = HG.turn === 0 ? h : g;
@@ -471,7 +520,7 @@ function netPlaySuite() {
         if (sig(h) !== sig(g)) desync++;
         if (HG.turn !== GG.turn || HG.round !== GG.round) desync++;
       }
-      if (HG.phase === 'over') { matches++; h.newMatch(); }
+      if (HG.phase === 'over') { matches++; h.newMatch(); doToss(); }
     }
     ok(matches >= 3 && !desync,
       `60 Hz host vs 144 Hz guest — ${matches} matches, ${flicks} relayed flicks, ${desync} desyncs`);

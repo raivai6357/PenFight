@@ -1,19 +1,73 @@
 /* ══════════════════════════════════════════════════════════════════════
    TURN FLOW
    ══════════════════════════════════════════════════════════════════════ */
-/* how a seat is named on screen — the net seats read from your side of
-   the table, the local ones from the sideline */
+/* how a seat is named on screen — the typed name if there is one, else the
+   mode's sensible default */
 function seatName(t) {
-  return G.mode === "net" ? (t === NET.role ? "YOU" : "YOUR FRIEND") : NAMES[t].toUpperCase();
+  return dispName(t).toUpperCase();
+}
+
+/* ── the opening toss ──────────────────────────────────────────────────
+   One player calls heads or tails, the coin is flipped, and whoever calls
+   it right flicks first. Later rounds still go to whoever's behind. */
+const TOSS_FLIP = 1.0;    // seconds the coin is in the air
+const TOSS_TIME = 1.6;    // …plus a beat lying on the desk before the banner
+
+/* online, the guest calls it — the host deals the coin */
+function tossCaller() {
+  return G.mode === "net" ? 1 : 0;
+}
+
+function beginToss() {
+  G.score = [0, 0]; G.round = 1;
+  G.lastBanner = null;
+  G.toss = { call: null, result: null, t: 0 };
+  G.tossSide = null;
+  G.phase = "toss";
+  el("setupWrap").hidden = true;
+  el("resultWrap").hidden = true;
+  updateTossUI();
+  syncBoard();
 }
 
 function newMatch() {
-  G.score = [0, 0]; G.round = 1;
-  G.lastBanner = null;
-  // the toss decides who flicks first — later rounds go to whoever's behind
-  G.turn = Math.random() < 0.5 ? 0 : 1;
-  banner("THE TOSS", `${seatName(G.turn)} FLICK FIRST`, HUES[G.turn]);
-  startRound();
+  beginToss();
+  if (G.mode === "net" && NET.role === 0) NET.send({ t: "toss" });   // tell the guest to call it
+}
+
+/* the caller commits to a side. Local play flips immediately; online, the
+   guest's call travels to the host, who flips for both. */
+function callToss(side) {
+  if (G.phase !== "toss" || !G.toss || G.toss.call) return;
+  if (G.mode === "net") {
+    if (NET.role !== 1) return;   // the guest calls it
+    G.toss.call = side;
+    NET.send({ t: "call", side });
+    updateTossUI();
+    return;
+  }
+  runToss(side);
+}
+
+function runToss(side) {
+  G.toss.call = side;
+  G.toss.result = Math.random() < 0.5 ? "heads" : "tails";
+  G.toss.t = 0;
+  if (G.mode === "net" && NET.role === 0) NET.send({ t: "flip", side, result: G.toss.result });
+  updateTossUI();
+}
+
+/* called from the paint loop once the coin has had its beat on the desk */
+function finishToss() {
+  const caller = tossCaller();
+  const win = G.toss.call === G.toss.result ? caller : 1 - caller;
+  G.turn = win;
+  const side = G.toss.result.toUpperCase();
+  G.tossSide = side;   // rides along on the round broadcast for the guest's banner
+  G.toss = null;
+  updateTossUI();
+  banner("THE TOSS", `${side} — ${seatName(win)} FLICK FIRST`, HUES[win]);
+  startRound();   // net-host: deals the fresh round to both players
   syncBoard();
 }
 
@@ -25,7 +79,7 @@ function startRound() {
     setSeed(seed);
     beginRound();
     NET.send({ t: "round", seed, snap: snapshot(G.W), score: G.score.slice(),
-               round: G.round, turn: G.turn, banner: G.lastBanner,
+               round: G.round, turn: G.turn, banner: G.lastBanner, toss: G.tossSide || null,
                desk: G.deskId, pens: G.penIds.slice(), clutter: G.clutter });
     return;
   }
@@ -62,11 +116,18 @@ function startRoundFromNet(m) {
   G.round = m.round;
   G.turn = m.turn;
   G.lastBanner = m.banner || null;
+  /* the round broadcast can overtake the coin still spinning on our side —
+     the desk is dealt, the toss is settled */
+  G.toss = null;
+  updateTossUI();
   beginRound();
   restoreSnap(G.W, m.snap);
   /* round 1 comes with the toss result — but the toss banner is written
      from each side's own seat, so the host's wording can't be reused */
-  if (m.round === 1) banner("THE TOSS", `${seatName(m.turn)} FLICK FIRST`, HUES[m.turn]);
+  if (m.round === 1) {
+    const side = m.toss ? `${m.toss} — ` : "";
+    banner("THE TOSS", `${side}${seatName(m.turn)} FLICK FIRST`, HUES[m.turn]);
+  }
   else if (m.banner) banner(m.banner.big, m.banner.small, m.banner.hue);
   syncBoard();
 }
@@ -356,6 +417,12 @@ function loop(now) {
     if (s.life <= 0) G.sparks.splice(i, 1);
   }
   G.shake = Math.max(0, G.shake - dt * 3.4);
+  /* the coin's flight runs on frame time like the rest of the paint —
+     both machines see the same call and result, so they settle the same */
+  if (G.phase === "toss" && G.toss && G.toss.result) {
+    G.toss.t += dt;
+    if (G.toss.t >= TOSS_TIME) finishToss();
+  }
   if (G.banner) {
     G.banner.t += dt;
     G.banner.life -= dt * 0.62;

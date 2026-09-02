@@ -350,7 +350,11 @@ function draw() {
   room.addColorStop(1, "#0a0c11");
   ctx.fillStyle = room; ctx.fillRect(0, 0, CW, CH);
 
-  if (!W) { drawIdleDesk(); return; }
+  if (!W) {
+    drawIdleDesk();
+    drawToss();   // the very first match is tossed before any world exists
+    return;
+  }
 
   if (G.shake > 0.01 && !reduceMotion) {
     ctx.translate(rnd(-1, 1) * G.shake * 5, rnd(-1, 1) * G.shake * 5);
@@ -399,6 +403,7 @@ function draw() {
   drawSparks();
   if (G.phase === "aim" || G.phase === "cpu") drawAim();
   drawTutor();
+  drawToss();
   drawBanner();
   ctx.setTransform(view.s, 0, 0, view.s, view.ox, view.oy);
 }
@@ -675,6 +680,66 @@ function drawTutor() {
   ctx.fillStyle = "rgba(236,232,222,.95)";
   ctx.fillText("drag back from your pen —", tx, ty);
   ctx.fillText("let go to flick!", tx, ty + 27);
+  ctx.restore();
+}
+
+/* the coin for the opening toss: sits waiting for the call, then spins
+   through five slowing turns and lands on the result */
+function drawToss() {
+  if (G.phase !== "toss" || !G.toss) return;
+  const T = G.toss;
+  const cx = CW / 2, cy = CH * 0.42;
+
+  // how the coin sits: horizontal squash (edge-on at 0), height, tilt, face
+  let sq = 1, dy = 0, rot = 0, face = "?";
+  if (!T.result) {
+    dy = Math.sin(performance.now() / 480) * 3;   // idling, waiting to be called
+  } else {
+    const front = T.result === "heads" ? "H" : "T";
+    const back = front === "H" ? "T" : "H";
+    if (T.t < TOSS_FLIP) {
+      const k = T.t / TOSS_FLIP;
+      // five turns that ease to a stop — the spin starts edge-on and ends
+      // face-up, so the resting face is the result
+      const ang = Math.PI + (1 - Math.pow(1 - k, 2.4)) * Math.PI * 9;
+      sq = Math.abs(Math.cos(ang));
+      face = Math.cos(ang) >= 0 ? front : back;
+      dy = -Math.sin(k * Math.PI) * 60;
+      rot = Math.sin(ang * 0.5) * 0.12;
+    } else {
+      face = front;
+      const b = T.t - TOSS_FLIP;   // a decaying little bounce on landing
+      dy = -Math.abs(Math.sin(b * 12)) * 9 * Math.max(0, 1 - b * 2.4);
+      rot = Math.sin(b * 9) * 0.08 * Math.max(0, 1 - b * 2);
+    }
+  }
+  if (reduceMotion) { sq = 1; dy = 0; rot = 0; if (T.result) face = T.result === "heads" ? "H" : "T"; }
+
+  // the shadow tracks the coin's height
+  const h = -dy;
+  ctx.save();
+  ctx.fillStyle = `rgba(0,0,0,${clamp(0.3 - h * 0.0022, 0.08, 0.3)})`;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + 46, clamp(30 - h * 0.16, 14, 30), clamp(9 - h * 0.05, 4, 9), 0, 0, TAU);
+  ctx.fill();
+
+  ctx.translate(cx, cy + dy);
+  ctx.rotate(rot);
+  ctx.scale(Math.max(sq, 0.06), 1);
+
+  const g = ctx.createRadialGradient(-8, -10, 4, 0, 0, 36);
+  g.addColorStop(0, "#f4d27a");
+  g.addColorStop(0.55, "#e9c049");
+  g.addColorStop(1, "#a67c1e");
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, 34, 0, TAU); ctx.fill();
+  ctx.strokeStyle = "#7a5a14"; ctx.lineWidth = 2; ctx.stroke();
+  ctx.strokeStyle = "rgba(122,90,20,.55)"; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(0, 0, 27, 0, TAU); ctx.stroke();
+  ctx.fillStyle = "#5d451a";
+  ctx.font = "700 34px Antonio, sans-serif";
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(face, 0, 2);
   ctx.restore();
 }
 

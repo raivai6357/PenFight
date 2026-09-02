@@ -16,6 +16,9 @@ const G = {
   pendingRound: null,
   sound: true,
   tutor: true,       // the drag tutorial — dismissed on the player's first grab
+  names: ["", ""],   // what each seat is called — typed by the players
+  toss: null,        // the opening coin toss: { call, result, t }
+  tossSide: null,    // how the last coin landed ("HEADS"/"TAILS") — for the guest's banner
   shake: 0,
   banner: null,
   lastBanner: null,
@@ -24,6 +27,18 @@ const G = {
   shot: { on: false, kb: false, angle: 0, power: 0, grabT: 0, ax: 0, ay: 0, px: 0, py: 0 }
 };
 const NAMES = ["Blue", "Red"];
+/* what a seat is called when nobody has typed a name — the net seats read
+   from your side of the table, the local ones from the sideline */
+function seatDefault(seat) {
+  if (G.mode === "cpu") return seat ? "The Desk" : "You";
+  if (G.mode === "net") return seat === NET.role ? "You" : "Friend";
+  return NAMES[seat];
+}
+/* the name a seat goes by on screen, whatever was typed or heard from the peer */
+function dispName(t) {
+  const n = (G.names[t] || "").trim();
+  return n || seatDefault(t);
+}
 const HUES = ["#5a72ea", "#e2503f"];
 const HUES_DEEP = ["#2b3a9e", "#9a2b21"];
 const TARGET = 2;      // best of three
