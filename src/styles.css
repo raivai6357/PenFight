@@ -40,7 +40,10 @@ body{
   font-weight:400;
   -webkit-font-smoothing:antialiased;
   min-height:100vh;
+  min-height:100dvh;   /* mobile browsers' collapsing URL bar */
   overflow-x:hidden;
+  overscroll-behavior:none;   /* no pull-to-refresh mid-flick */
+  -webkit-tap-highlight-color:transparent;
 }
 
 /* the room: a pool of lamplight, off to one side */
@@ -55,6 +58,7 @@ body{
 .shell{
   position:relative;z-index:1;
   min-height:100vh;
+  min-height:100dvh;
   display:flex;flex-direction:column;
   gap:clamp(8px,1.4vh,18px);
   padding:clamp(10px,2vh,22px) clamp(10px,2.4vw,28px) clamp(12px,2vh,20px);
@@ -148,9 +152,10 @@ body{
 
 canvas#desk{
   display:block;width:100%;height:100%;
-  touch-action:none;
+  touch-action:none;   /* a drag is a flick, never a scroll or a zoom */
   border-radius:5px;
   outline:none;
+  user-select:none;-webkit-user-select:none;
 }
 canvas#desk:focus-visible{
   box-shadow:0 0 0 2px var(--amber),0 0 0 5px rgba(233,192,73,.22);
@@ -360,11 +365,53 @@ legend{
   border-radius:2px;padding:1px 4px;color:var(--graphite);
 }
 
+/* only relevant on a phone held upright — the desk is landscape-shaped */
+.rotate-tip{
+  display:none;
+  font-family:var(--f-mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--amber);
+}
+
+/* ─────────── small screens (phones) ─────────── */
 @media (max-width:620px){
   .tag .what{display:none}
   .count{font-size:34px}
   .keys{display:none}
+  /* the frame is a tiny letterbox in portrait — let the paper cover the
+     whole screen instead of scrolling inside a stamp-sized window */
+  .sheet-wrap{
+    position:fixed;inset:0;z-index:20;border-radius:0;
+    padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));
+  }
+  .sheet{transform:none}   /* the tilt eats corner space when full-bleed */
 }
+@media (max-width:420px){
+  .count{font-size:30px}
+  .tag .who{font-size:16px}
+  .state{font-size:13px}
+}
+@media (orientation:portrait) and (max-width:700px){
+  .rotate-tip{display:inline}
+}
+
+/* ─────────── short viewports (phones held sideways) ─────────── */
+@media (max-height:540px){
+  .shell{gap:5px;padding:5px 10px 7px}
+  .count{font-size:28px}
+  .tag .who{font-size:16px}
+  .hint{display:none}
+  .foot{flex-wrap:nowrap}
+}
+
+/* ─────────── touch pointers: fingers are bigger than cursors ─────────── */
+@media (pointer:coarse){
+  .opt{padding:11px 15px}
+  .tool{padding:11px 14px}
+  .btn{padding:13px 32px}
+  .pen-opt{padding:12px 13px}
+  .opt,.tool,.btn,.pen-opt{touch-action:manipulation}   /* no double-tap zoom on rapid taps */
+}
+
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001ms !important;transition-duration:.001ms !important}
 }

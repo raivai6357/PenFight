@@ -8,14 +8,23 @@ function myTurn() {
   return true;
 }
 
-function hitPen(pen, x, y) {
+function hitPen(pen, x, y, slop) {
+  slop = slop || 20;
   const dx = x - pen.x, dy = y - pen.y;
   const ca = Math.cos(-pen.a), sa = Math.sin(-pen.a);
   const lx = dx * ca - dy * sa, ly = dx * sa + dy * ca;
   const span = pen.len / 2 - pen.rad;
-  if (Math.abs(ly) > pen.rad + 20) return null;
-  if (Math.abs(lx) > span + pen.rad + 20) return null;
+  if (Math.abs(ly) > pen.rad + slop) return null;
+  if (Math.abs(lx) > span + pen.rad + slop) return null;
   return clamp(lx / span, -1, 1);
+}
+
+/* a finger is a finger: the grab slop is a constant ~26 CSS px regardless
+   of how far the canvas is zoomed, or a pen on a phone screen is too small
+   to grab at all. (One logical unit draws as view.s/dpr CSS px.) */
+function touchSlop() {
+  const dpr = window.devicePixelRatio || 1;
+  return clamp(26 * dpr / view.s, 20, 110);
 }
 
 cv.addEventListener("pointerdown", (ev) => {
@@ -23,7 +32,7 @@ cv.addEventListener("pointerdown", (ev) => {
   if (!myTurn()) return;
   const p = toLogical(ev);
   const pen = G.W.pens[G.turn];
-  const t = hitPen(pen, p.x, p.y);
+  const t = hitPen(pen, p.x, p.y, touchSlop());
   if (t === null) return;
   cv.setPointerCapture(ev.pointerId);
   cv.focus({ preventScroll: true });
@@ -58,6 +67,8 @@ function endDrag(ev) {
 }
 cv.addEventListener("pointerup", endDrag);
 cv.addEventListener("pointercancel", endDrag);
+/* a long-press on a touch screen must not pop up a context menu mid-aim */
+cv.addEventListener("contextmenu", (ev) => ev.preventDefault());
 
 cv.addEventListener("keydown", (ev) => {
   if (G.phase !== "aim") return;

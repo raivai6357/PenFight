@@ -1,8 +1,17 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- without this, phones render the page at a fake 980px and every drag
+     fights the browser's scrolling and zooming -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#13151c">
 <title>Desk Duel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Antonio:wght@400;600;700&family=Caveat:wght@500;700&family=Chivo+Mono:wght@400;600&family=Chivo:ital,wght@0,300;0,400;0,600;0,900&display=swap">
+</head>
+<body>
 
 <!--@css@-->
 
@@ -131,6 +140,7 @@
 
   <footer class="foot">
     <p class="hint" id="hint">Grab your pen near the <b>tip</b> and it'll spin as it flies&mdash;glancing blows send theirs cartwheeling.</p>
+    <span class="rotate-tip">Rotate for a bigger desk</span>
     <div class="tools">
       <span class="keys"><kbd>&larr;</kbd><kbd>&rarr;</kbd> aim &nbsp;<kbd>&uarr;</kbd><kbd>&darr;</kbd> power &nbsp;<kbd>Space</kbd> flick</span>
       <button class="tool" type="button" id="soundBtn" aria-pressed="true">Sound on</button>
@@ -140,3 +150,5 @@
 </div>
 
 <!--@js@-->
+</body>
+</html>

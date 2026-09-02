@@ -430,11 +430,18 @@ function netPlaySuite() {
     g.NET.send = (m) => h.netDispatch(m);
 
     const nrng = mulberry32(0xFACE);
-    // each instance gets its own virtual clock, ticking at its own refresh rate
+    // each instance gets its own virtual clock; both advance the same virtual
+    // time per iteration, but the host's arrives in 5 big frames and the
+    // guest's in 12 small ones (60 Hz vs 144 Hz spacing)
     let hClock = clock + 1000, gClock = clock + 1000;
     let matches = 0, flicks = 0, frames = 0, desync = 0;
+    /* dead bodies keep animating on paint time (the fall and the spin-out),
+       which is local cosmetics — only LIVE bodies must agree bit-for-bit */
+    const sig = (I) => JSON.stringify(I.G.W.bodies
+      .filter((b) => !b.stat)
+      .map((b) => (b.alive ? [b.x, b.y, b.a, b.vx, b.vy, b.w] : [b.alive])));
     h.newMatch();
-    while (matches < 3 && frames < 90000) {
+    while (matches < 3 && frames < 30000) {
       if (HG.phase === 'aim' && GG.phase === 'aim' && HG.turn === GG.turn) {
         const I = HG.turn === 0 ? h : g;
         I.G.shot.angle = nrng() * Math.PI * 2;
@@ -442,11 +449,11 @@ function netPlaySuite() {
         I.G.shot.grabT = nrng() * 2 - 1;
         I.fireShot(); flicks++;
       }
-      hClock += 1000 / 60;  h.loop(hClock);
-      gClock += 1000 / 144; g.loop(gClock);
+      for (let i = 0; i < 5; i++) { hClock += 1000 / 60; h.loop(hClock); }
+      for (let i = 0; i < 12; i++) { gClock += 1000 / 144; g.loop(gClock); }
       frames++;
       if (HG.phase === 'aim' && GG.phase === 'aim') {
-        if (JSON.stringify(h.snapshot(HG.W)) !== JSON.stringify(g.snapshot(GG.W))) desync++;
+        if (sig(h) !== sig(g)) desync++;
         if (HG.turn !== GG.turn || HG.round !== GG.round) desync++;
       }
       if (HG.phase === 'over') { matches++; h.newMatch(); }

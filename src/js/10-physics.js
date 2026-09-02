@@ -311,7 +311,7 @@ function snapshot(W) {
   const s = [];
   for (const b of W.bodies) {
     if (b.stat) continue;
-    s.push([b.x, b.y, b.a, b.vx, b.vy, b.w, b.alive, b.out, b.fall]);
+    s.push([b.x, b.y, b.a, b.vx, b.vy, b.w, b.alive, b.out, b.fall, b.spinOut]);
   }
   return s;
 }
@@ -322,7 +322,7 @@ function restoreSnap(W, s) {
     const d = s[i++];
     b.x = d[0]; b.y = d[1]; b.a = d[2];
     b.vx = d[3]; b.vy = d[4]; b.w = d[5];
-    b.alive = d[6]; b.out = d[7]; b.fall = d[8];
+    b.alive = d[6]; b.out = d[7]; b.fall = d[8]; b.spinOut = d[9] || 0;
   }
 }
 /*#PHYS_END*/
