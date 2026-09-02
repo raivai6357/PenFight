@@ -186,7 +186,6 @@ canvas#desk:focus-visible{
     0 1px 0 rgba(255,255,255,.5) inset,
     0 26px 60px rgba(0,0,0,.6),
     0 3px 10px rgba(0,0,0,.4);
-  transform:rotate(-.35deg);
   position:relative;
   /* the red margin rule, down the left */
   background-image:
@@ -424,7 +423,6 @@ legend{
     position:fixed;inset:0;z-index:20;border-radius:0;
     padding:max(10px,env(safe-area-inset-top)) 10px max(10px,env(safe-area-inset-bottom));
   }
-  .sheet{transform:none}   /* the tilt eats corner space when full-bleed */
 }
 @media (max-width:420px){
   .count{font-size:30px}
